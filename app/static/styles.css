@@ -214,6 +214,16 @@ select { max-width: 220px; cursor: pointer; }
   font-size: 13.5px;
 }
 
+/* Only shown when the failure came back with a transaction id to retry. */
+.retry-button {
+  display: block;
+  margin-top: 9px;
+  font-size: 13px;
+  background: var(--surface);
+  border-color: #e0a8a8;
+  color: #8c2020;
+}
+
 /* ---------------------------------------------------------------------------
    Result
    --------------------------------------------------------------------------- */

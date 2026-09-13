@@ -15,7 +15,7 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 203 passing, **98%** coverage of `app/` |
+| **Tests** | 210 passing, **99%** coverage of `app/` |
 | **Classifier** | 92.5% accuracy / 0.925 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
@@ -36,6 +36,40 @@ rather than one monolithic function.
 - [Repository layout](#repository-layout)
 - [Configuration](#configuration)
 - [Shortcuts and scope notes](#shortcuts-and-scope-notes)
+
+---
+
+## How this maps to the assignment
+
+| # | Requirement | Where | Status |
+|---|-------------|-------|--------|
+| 1 | `POST /ticket` returning category, aspect sentiment, snippets, action, response text, config, latency, transaction id | [app/main.py](app/main.py), [app/schemas.py](app/schemas.py) | ✅ |
+| 1 | `POST /feedback` updating the RL loop | [app/main.py](app/main.py) → [pipeline.handle_feedback](app/workflow/pipeline.py) | ✅ |
+| 1 | `GET /ticket/{id}/status` from real workflow state | reads the same SQLite rows the engine writes | ✅ |
+| 2 | Classifier with the maths written by hand, 4 categories | [naive_bayes.py](app/ml/naive_bayes.py), [tfidf.py](app/ml/tfidf.py) — no `model.fit()`, scikit-learn is not a dependency | ✅ |
+| 2 | 100–200 labelled tickets, accuracy / precision / recall / F1 on a held-out split | [data/tickets.json](data/tickets.json) (160), [metrics.py](app/ml/metrics.py), `scripts/train_and_report.py` | ✅ 92.5% / 0.925 F1 |
+| 2 | 1–3 aspects per ticket, scored independently | [aspect_sentiment.py](app/ml/aspect_sentiment.py) — keyword spotting + VADER per sentence | ✅ |
+| 2 | Urgency from category + sentiment + tier | [urgency.py](app/ml/urgency.py) | ✅ |
+| 3 | 4–6 markdown knowledge base documents | [data/knowledge_base/](data/knowledge_base/) — 5 documents, 28 chunks | ✅ |
+| 3 | Vector store, chunk + embed + top-K | [vector_store.py](app/rag/vector_store.py) — in-memory cosine index | ✅ |
+| 3 | Two distinct LLM configurations | [configs.py](app/llm/configs.py) — two prompt variants, each on its own Ollama model | ⚠️ code path tested with mocks; never run against a live Ollama — see [scope notes](#shortcuts-and-scope-notes) |
+| 4 | ReAct loop choosing answer / tool / escalate | [react_agent.py](app/agent/react_agent.py) | ✅ |
+| 4 | Mock `check_account_status` and `check_refund_eligibility` | [tools.py](app/agent/tools.py) | ✅ |
+| 4 | Decision, tool calls and trace in the response **and in logs** | returned by `POST /ticket`; logged by the `ticketiq.agent` logger | ✅ |
+| 5 | Lightweight online learner, no deep network | [bandit.py](app/rl/bandit.py) — epsilon-greedy contextual bandit | ✅ |
+| 5 | State = category + urgency + tier | [state.py](app/rl/state.py) — 36 states | ✅ |
+| 5 | Action = prompt config and/or RAG top-K | both: 2 variants × 2 top-K = 4 arms | ✅ |
+| 5 | Reward = feedback × 10 − latency | [state.py](app/rl/state.py) | ✅ |
+| 5 | Experiment showing the distribution shift | `scripts/simulate_bandit.py` — 54% → 89% optimal | ✅ |
+| 6 | Named stages with declared dependencies (DAG) | [dag.py](app/workflow/dag.py), [pipeline.py](app/workflow/pipeline.py) — 7 stages | ✅ |
+| 6 | Per-ticket, per-stage state persisted | [state_store.py](app/workflow/state_store.py) — SQLite | ✅ |
+| 6 | Inspectable mid-flight | proved by `test_the_pipeline_can_be_inspected_while_it_is_still_running` | ✅ |
+| 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
+| 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment`, proved with a `threading.Barrier` | ✅ |
+| 7 | Type hints, black, ruff, pre-commit | mypy runs clean over `app/`; all four wired into `.pre-commit-config.yaml` | ✅ |
+| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 210 tests, 99% coverage | ✅ |
+| 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
+| — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
 
 ---
 
@@ -344,6 +378,29 @@ When a stage fails, its row shows `"status": "failed"` with the error message,
 everything downstream shows `"skipped"`, and the completed stages upstream keep
 their outputs — which is exactly what makes a retry cheap.
 
+### `POST /ticket/{transaction_id}/retry`
+
+Re-runs a ticket whose pipeline failed, **reusing every stage that already
+succeeded**. This is the resumable half of the workflow engine made usable.
+
+```bash
+curl -X POST http://localhost:8000/ticket/tx-f74f7d434acb/retry
+```
+
+The response is the same shape as `POST /ticket`, and its two bookkeeping
+fields show that the upstream work was not repeated:
+
+```json
+{
+  "stages_reused":   ["classify_ticket", "analyse_sentiment", "score_urgency",
+                      "select_configuration"],
+  "stages_executed": ["retrieve_knowledge", "run_agent", "compose_response"]
+}
+```
+
+Returns `404` for an unknown transaction and `409` if the ticket already
+completed, since there is then nothing to retry.
+
 ### Inspection endpoints
 
 | Endpoint | Returns |
@@ -532,7 +589,7 @@ has nothing left to do, so it is not a dependency at all. `app/ml/tfidf.py`,
 ## Testing
 
 ```bash
-pytest                                              # 203 tests
+pytest                                              # 210 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -549,10 +606,10 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, step limit | 24 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
-| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, the console routes | 28 |
-| `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, selective retry | 12 |
+| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console routes | 31 |
+| `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection | 18 |
 
-**Coverage: 98% of `app/`** — 100% on the bandit, the DAG engine, the
+**Coverage: 99% of `app/`** — 100% on the bandit, the DAG engine, the
 classifier, TF-IDF, chunking and the vector store.
 
 The suite deliberately covers failure paths, not just happy paths: unparseable
@@ -564,12 +621,13 @@ raising, duplicate feedback, and a corrupt bandit state file.
 ```bash
 black app tests scripts data          # format
 ruff check app tests scripts data     # lint
-pre-commit install                    # wire both into git commit
+mypy                                  # static type check of app/
+pre-commit install                    # wire all three into git commit
 pre-commit run --all-files
 ```
 
-CI (`.github/workflows/ci.yml`) runs black, ruff and the test suite on Python
-3.11 and 3.12, verifies the dataset regenerates byte-identically, runs both
+CI (`.github/workflows/ci.yml`) runs black, ruff, mypy and the test suite on
+Python 3.11 and 3.12, verifies the dataset regenerates byte-identically, runs both
 experiment scripts, and builds the Docker image and health-checks the container.
 
 ---
@@ -598,7 +656,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 203 tests, 98% coverage
+├── tests/                      # 210 tests, 99% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml

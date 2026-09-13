@@ -33,6 +33,18 @@ select = [
 "tests/*" = ["B011"]
 
 # ---------------------------------------------------------------------------
+# mypy: static type checking. The application code is fully annotated, so this
+# runs clean; tests are excluded because their fixtures and monkeypatching add
+# noise without adding safety.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+files = ["app"]
+ignore_missing_imports = true     # vaderSentiment ships no type stubs
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+# ---------------------------------------------------------------------------
 # pytest + coverage
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]

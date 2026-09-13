@@ -1,6 +1,6 @@
 # `tests/` — the test suite
 
-**203 tests, 98% coverage of `app/`.** Every test is offline and deterministic:
+**210 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
 no model server, no network, no clock dependence.
 
 ```bash
@@ -22,8 +22,8 @@ pytest -k "bandit and converge"               # one test by name
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, state store, schema self-healing | 26 |
 | `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, the step limit | 24 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
-| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, the console routes | 28 |
-| `test_end_to_end.py` | the full pipeline with the LLM mocked out, persistence, feedback, stage failure, selective retry, a deleted database | 14 |
+| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console routes | 31 |
+| `test_end_to_end.py` | the full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection, a deleted database | 18 |
 
 ## How the suite stays offline
 
@@ -75,14 +75,15 @@ against a plain average.
 - duplicate feedback on one transaction
 - a corrupt bandit state file
 - an unknown tool name, an unknown action name, a non-object `action_input`
+- retrying a transaction that never existed, and one that already succeeded
 
-**Deliberate coverage gaps.** The ~2% not covered is the `except` arm of the
+**Deliberate coverage gaps.** The ~1% not covered is the `except` arm of the
 environment-variable parsers in `settings.py` (malformed numeric env vars) and a
 couple of defensive branches. Everything with real logic — the bandit, the DAG
 engine, the classifier, TF-IDF, chunking and the vector store — is at 100%.
 
 ## CI
 
-`.github/workflows/ci.yml` runs black, ruff and this suite on Python 3.11 and
-3.12, checks the dataset regenerates byte-identically, runs both experiment
+`.github/workflows/ci.yml` runs black, ruff, mypy and this suite on Python 3.11
+and 3.12, checks the dataset regenerates byte-identically, runs both experiment
 scripts, and builds and health-checks the Docker image.

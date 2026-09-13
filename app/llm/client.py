@@ -23,6 +23,7 @@ the reward signal - stays meaningful offline.
 
 import json
 import time
+from typing import Any
 
 import requests
 
@@ -87,7 +88,7 @@ class OllamaBackend:
 
     def generate(self, request: LlmRequest, model: str) -> str:
         """Send the prompt and return the raw completion text."""
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "system": request.system_prompt,
             "prompt": request.user_prompt,

@@ -5,6 +5,9 @@ inject a fake model, force a stage failure, and then inspect the persisted
 workflow state afterwards.
 """
 
+import sqlite3
+import threading
+
 import pytest
 
 from app.workflow.pipeline import (
@@ -17,6 +20,7 @@ from app.workflow.pipeline import (
     STAGE_URGENCY,
     FeedbackNotAcceptedError,
     PipelineError,
+    RetryNotNeededError,
     TriageService,
     UnknownTransactionError,
 )
@@ -259,6 +263,116 @@ def test_a_repaired_stage_is_the_only_one_re_run(service):
     assert STAGE_CLASSIFY in retry.reused_stages
     assert STAGE_SENTIMENT in retry.reused_stages
     assert STAGE_RETRIEVE in retry.executed_stages
+
+
+def test_retry_reruns_only_the_failed_stage(service):
+    """Requirement 6, made usable through the service API.
+
+    A stage fails on a transient problem; the retry must reuse the four stages
+    that already succeeded and execute only what is missing.
+    """
+    original_run = service.engine.stages_by_name[STAGE_RETRIEVE].run
+
+    def explode(context):
+        raise RuntimeError("knowledge base briefly unreadable")
+
+    service.engine.stages_by_name[STAGE_RETRIEVE].run = explode
+
+    with pytest.raises(PipelineError) as error:
+        service.handle_ticket("Refund request", "I was charged twice.", "pro")
+    transaction_id = error.value.transaction_id
+
+    # The transient problem clears.
+    service.engine.stages_by_name[STAGE_RETRIEVE].run = original_run
+
+    result = service.retry_ticket(transaction_id)
+
+    assert result["transaction_id"] == transaction_id
+    assert result["category"] == "billing"
+    # The upstream work was not paid for twice.
+    for reused in [STAGE_CLASSIFY, STAGE_SENTIMENT, STAGE_URGENCY, STAGE_SELECT_CONFIG]:
+        assert reused in result["stages_reused"]
+    # Only the broken stage and everything after it actually ran.
+    assert sorted(result["stages_executed"]) == sorted([STAGE_RETRIEVE, STAGE_AGENT, STAGE_COMPOSE])
+
+    # The ticket is now complete, and feedback works on it.
+    assert service.get_status(transaction_id)["status"] == "completed"
+    assert service.handle_feedback(transaction_id, 1)["reward"] > 0
+
+
+def test_retry_of_an_unknown_transaction_raises(service):
+    with pytest.raises(UnknownTransactionError):
+        service.retry_ticket("tx-not-real")
+
+
+def test_retry_of_a_completed_ticket_is_refused(service):
+    result = service.handle_ticket("Refund request", "I was charged twice.", "pro")
+
+    with pytest.raises(RetryNotNeededError):
+        service.retry_ticket(result["transaction_id"])
+
+
+def test_the_pipeline_can_be_inspected_while_it_is_still_running(service):
+    """Requirement 6: state must be visible mid-flight, not only at the end.
+
+    A stage is held open on a barrier while another thread reads the status
+    endpoint. The upstream stages must already show as completed, and the
+    stages after the held one must not have started.
+    """
+    release = threading.Event()
+    reached = threading.Event()
+    original_run = service.engine.stages_by_name[STAGE_RETRIEVE].run
+
+    def slow_retrieve(context):
+        reached.set()
+        release.wait(timeout=10)
+        return original_run(context)
+
+    service.engine.stages_by_name[STAGE_RETRIEVE].run = slow_retrieve
+
+    finished: dict = {}
+
+    def run_pipeline():
+        finished["result"] = service.handle_ticket("Refund request", "I was charged twice.", "pro")
+
+    worker = threading.Thread(target=run_pipeline)
+    worker.start()
+    try:
+        assert reached.wait(timeout=10), "the pipeline never reached the held stage"
+
+        # Find the in-flight transaction and read its status mid-run.
+        transaction_id = _only_running_transaction(service)
+        mid_flight = service.get_status(transaction_id)
+
+        by_name = {stage["stage"]: stage["status"] for stage in mid_flight["stages"]}
+        assert mid_flight["status"] == "running"
+        assert by_name[STAGE_CLASSIFY] == "completed"
+        assert by_name[STAGE_SENTIMENT] == "completed"
+        assert by_name[STAGE_RETRIEVE] == "running"
+        # Nothing downstream of the held stage has a row yet.
+        assert STAGE_AGENT in mid_flight["not_started_stages"]
+        assert 0 < mid_flight["completed_stages"] < mid_flight["total_stages"]
+    finally:
+        release.set()
+        worker.join(timeout=15)
+        service.engine.stages_by_name[STAGE_RETRIEVE].run = original_run
+
+    # And it finishes normally afterwards.
+    assert finished["result"]["category"] == "billing"
+
+
+def _only_running_transaction(service) -> str:
+    """The transaction id of the single in-flight ticket."""
+    connection = sqlite3.connect(str(service.store.database_path))
+    try:
+        rows = connection.execute(
+            "SELECT transaction_id FROM tickets WHERE status = 'running'"
+        ).fetchall()
+    finally:
+        connection.close()
+
+    assert len(rows) == 1, "expected exactly one running ticket, found " + str(len(rows))
+    return str(rows[0][0])
 
 
 def test_health_reports_the_mocked_backend(service):

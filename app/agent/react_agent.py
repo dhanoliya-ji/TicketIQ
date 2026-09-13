@@ -23,6 +23,7 @@ cannot be audited is not worth much in support operations.
 """
 
 import json
+import logging
 
 from app.agent.tools import (
     ALL_ACTION_NAMES,
@@ -35,6 +36,12 @@ from app.agent.tools import (
 from app.llm.client import TASK_DECIDE, TASK_WRITE, LlmClient, LlmRequest
 from app.llm.configs import PipelineConfig
 from app.settings import SETTINGS
+
+# The assignment asks for the agent's decision, its tool calls and its
+# reasoning trace to be inspectable in the logs as well as in the API response.
+# Logging from the agent itself - rather than from the endpoint - means the
+# trace is recorded even when the agent is driven by a script or a test.
+logger = logging.getLogger("ticketiq.agent")
 
 
 class AgentStep:
@@ -260,6 +267,14 @@ class TriageAgent:
             step = AgentStep(step_number, thought, action, action_input)
             result.trace.append(step)
 
+            logger.info(
+                "step %s | action=%s | input=%s | thought=%s",
+                step_number,
+                action,
+                json.dumps(action_input),
+                thought,
+            )
+
             if action in ALL_TOOL_NAMES:
                 # Fill in an identifier the model forgot to pass through.
                 if action == "check_refund_eligibility" and "order_id" not in action_input:
@@ -270,6 +285,14 @@ class TriageAgent:
                 tool_result = run_tool(action, action_input)
                 result.tool_results.append(tool_result)
                 step.observation = tool_result.summary
+
+                logger.info(
+                    "step %s | tool=%s | arguments=%s | observation=%s",
+                    step_number,
+                    tool_result.tool,
+                    json.dumps(tool_result.arguments),
+                    tool_result.summary,
+                )
 
                 tools_already_used.append(action)
                 observations.append(action + " -> " + tool_result.summary)
@@ -290,6 +313,14 @@ class TriageAgent:
                     {"reason": "step limit reached"},
                 )
             )
+
+        logger.info(
+            "decision=%s | steps=%s | tools=%s | config=%s",
+            decision,
+            len(result.trace),
+            json.dumps([tool.tool for tool in result.tool_results]),
+            config.name,
+        )
 
         result.decision = decision
         result.response_text = self._write_reply(

@@ -35,6 +35,7 @@ from app.schemas import (
 from app.workflow.pipeline import (
     FeedbackNotAcceptedError,
     PipelineError,
+    RetryNotNeededError,
     TriageService,
     UnknownTransactionError,
 )
@@ -157,6 +158,41 @@ def post_feedback(request: FeedbackRequest) -> dict:
         result["reward"],
         result["state_key"],
         result["config_name"],
+    )
+    return result
+
+
+@app.post("/ticket/{transaction_id}/retry", response_model=TicketResponse)
+def post_ticket_retry(transaction_id: str) -> dict:
+    """Re-run a failed pipeline, reusing every stage that already succeeded.
+
+    This is the resumable half of requirement 6 made usable: the response still
+    carries ``stages_reused`` and ``stages_executed``, so it is visible that the
+    upstream work was not repeated.
+    """
+    try:
+        result = service.retry_ticket(transaction_id)
+    except UnknownTransactionError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except RetryNotNeededError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except PipelineError as error:
+        logger.error("retry failed again at stage %s: %s", error.failed_stage, error.error)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "the triage pipeline failed again",
+                "transaction_id": error.transaction_id,
+                "failed_stage": error.failed_stage,
+                "error": error.error,
+            },
+        ) from error
+
+    logger.info(
+        "retry %s reused=%s executed=%s",
+        transaction_id,
+        result["stages_reused"],
+        result["stages_executed"],
     )
     return result
 

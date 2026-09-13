@@ -53,6 +53,10 @@ var EXAMPLES = [
 var current = null;
 var isBusy = false;
 
+// Set when a pipeline failure came back with a transaction id, so the error
+// message can offer to retry that transaction.
+var lastFailedTransactionId = null;
+
 /* ---------------------------------------------------------------------------
    Small helpers
    --------------------------------------------------------------------------- */
@@ -121,6 +125,7 @@ async function apiPost(path, payload) {
    showing a bare status code. */
 function describeFailure(status, body) {
   var detail = body ? body.detail : null;
+  lastFailedTransactionId = null;
 
   if (detail && typeof detail === "string") {
     return detail;
@@ -130,6 +135,8 @@ function describeFailure(status, body) {
     if (detail.failed_stage) {
       text = text + " (stage: " + detail.failed_stage + ")";
     }
+    // Remembered so the caller can offer a retry of just that stage.
+    lastFailedTransactionId = detail.transaction_id || null;
     return text;
   }
   if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
@@ -159,14 +166,50 @@ function setBusy(busy) {
   byId("submit-label").textContent = busy ? "Working…" : "Triage ticket";
 }
 
-function showError(message) {
+/* Show an error. When the pipeline failed part way, the service gives back the
+   transaction id, so we can offer to retry it - which re-runs only the broken
+   stage rather than the whole pipeline. */
+function showError(message, retryTransactionId) {
   var element = byId("form-error");
+  clear(element);
+
   if (!message) {
     element.hidden = true;
     return;
   }
-  element.textContent = message;
+
+  element.appendChild(document.createTextNode(message));
+
+  if (retryTransactionId) {
+    var button = make("button", "button retry-button", "Retry the failed step");
+    button.type = "button";
+    button.addEventListener("click", function () {
+      retryTicket(retryTransactionId, button);
+    });
+    element.appendChild(button);
+  }
+
   element.hidden = false;
+}
+
+/* Re-run a failed ticket. The stages that already succeeded are reused. */
+async function retryTicket(transactionId, button) {
+  button.disabled = true;
+  button.textContent = "Retrying…";
+
+  try {
+    var result = await apiPost("/ticket/" + transactionId + "/retry", {});
+    current = result;
+    showError(null);
+    render(result);
+    loadStages(result.transaction_id);
+    loadRouting(result.rl_state_key);
+    byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Retry the failed step";
+    showError(error.message, transactionId);
+  }
 }
 
 async function submitTicket(event) {
@@ -207,7 +250,7 @@ async function submitTicket(event) {
 
     byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    showError(error.message);
+    showError(error.message, lastFailedTransactionId);
   } finally {
     setBusy(false);
   }

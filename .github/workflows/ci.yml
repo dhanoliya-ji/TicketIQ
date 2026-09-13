@@ -38,6 +38,9 @@ jobs:
       - name: Lint with ruff
         run: ruff check app tests scripts data
 
+      - name: Type check with mypy
+        run: mypy
+
       - name: Run the test suite with coverage
         # The template backend keeps CI offline: no model server is needed.
         env:

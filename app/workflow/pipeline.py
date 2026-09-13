@@ -53,7 +53,7 @@ STAGE_COMPOSE = "compose_response"
 
 
 class TriageService:
-    """Owns every component and exposes the three operations the API needs."""
+    """Owns every component and exposes the operations the API needs."""
 
     def __init__(self) -> None:
         SETTINGS.ensure_var_dir()
@@ -241,7 +241,37 @@ class TriageService:
         request = {"subject": subject, "body": body, "customer_tier": customer_tier}
 
         self.store.create_ticket(transaction_id, request)
+        return self._run_pipeline(transaction_id, request)
 
+    # ------------------------------------------------------------------
+    # Operation 2: retry a ticket whose pipeline failed part way
+    # ------------------------------------------------------------------
+    def retry_ticket(self, transaction_id: str) -> dict:
+        """Re-run a ticket, reusing every stage that already succeeded.
+
+        This is what the resumable state store is *for*. A stage that failed
+        on a transient problem - the knowledge base briefly unreadable, a model
+        server that went away - can be retried on its own, without paying for
+        classification, sentiment and retrieval a second time. The response
+        reports which stages were reused and which actually ran, so the saving
+        is visible rather than claimed.
+        """
+        ticket = self.store.get_ticket(transaction_id)
+        if ticket is None:
+            raise UnknownTransactionError(transaction_id)
+
+        if ticket["status"] == STATUS_COMPLETED:
+            raise RetryNotNeededError(transaction_id)
+
+        return self._run_pipeline(transaction_id, ticket["request"])
+
+    def _run_pipeline(self, transaction_id: str, request: dict) -> dict:
+        """Run the graph for one transaction and build the API payload.
+
+        Shared by the first attempt and by a retry. The engine reuses any stage
+        already marked completed for this transaction, so the first attempt
+        executes everything and a retry executes only what is missing.
+        """
         # The latency measured here is what the reward function penalises, so
         # it must cover the whole pipeline, not just the model call.
         started_at = time.perf_counter()
@@ -300,7 +330,7 @@ class TriageService:
         return response
 
     # ------------------------------------------------------------------
-    # Operation 2: learn from feedback
+    # Operation 3: learn from feedback
     # ------------------------------------------------------------------
     def handle_feedback(self, transaction_id: str, feedback_score: int) -> dict:
         """Turn one piece of feedback into a bandit update.
@@ -358,7 +388,7 @@ class TriageService:
         }
 
     # ------------------------------------------------------------------
-    # Operation 3: inspect the pipeline
+    # Operation 4: inspect the pipeline
     # ------------------------------------------------------------------
     def get_status(self, transaction_id: str) -> dict:
         """Report the real per-stage state held by the workflow engine."""
@@ -428,6 +458,14 @@ class PipelineError(Exception):
         self.transaction_id = transaction_id
         self.failed_stage = failed_stage
         self.error = error
+
+
+class RetryNotNeededError(Exception):
+    """The ticket already completed, so there is nothing to retry."""
+
+    def __init__(self, transaction_id: str) -> None:
+        super().__init__("transaction " + transaction_id + " already completed successfully")
+        self.transaction_id = transaction_id
 
 
 class UnknownTransactionError(Exception):

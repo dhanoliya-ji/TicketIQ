@@ -184,6 +184,60 @@ def test_status_of_an_unknown_transaction_is_404(client):
 
 
 # ---------------------------------------------------------------------------
+# POST /ticket/{id}/retry
+# ---------------------------------------------------------------------------
+
+
+def test_retry_reruns_only_what_failed(client):
+    """The resumable engine, exercised over HTTP."""
+    from app.main import service
+    from app.workflow.pipeline import STAGE_RETRIEVE
+
+    original_run = service.engine.stages_by_name[STAGE_RETRIEVE].run
+
+    def explode(context):
+        raise RuntimeError("knowledge base briefly unreadable")
+
+    service.engine.stages_by_name[STAGE_RETRIEVE].run = explode
+    try:
+        failed = submit_ticket(client, "Refund request", "I was charged twice.")
+        assert failed.status_code == 500
+        transaction_id = failed.json()["detail"]["transaction_id"]
+        assert failed.json()["detail"]["failed_stage"] == STAGE_RETRIEVE
+    finally:
+        service.engine.stages_by_name[STAGE_RETRIEVE].run = original_run
+
+    # Mid-failure, the status endpoint already shows exactly where it stopped.
+    status = client.get("/ticket/" + transaction_id + "/status").json()
+    by_name = {stage["stage"]: stage["status"] for stage in status["stages"]}
+    assert status["status"] == "failed"
+    assert by_name["classify_ticket"] == "completed"
+    assert by_name[STAGE_RETRIEVE] == "failed"
+
+    response = client.post("/ticket/" + transaction_id + "/retry")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["transaction_id"] == transaction_id
+    assert "classify_ticket" in body["stages_reused"]
+    assert "analyse_sentiment" in body["stages_reused"]
+    assert STAGE_RETRIEVE in body["stages_executed"]
+    assert client.get("/ticket/" + transaction_id + "/status").json()["status"] == "completed"
+
+
+def test_retry_of_an_unknown_transaction_is_404(client):
+    assert client.post("/ticket/tx-nope/retry").status_code == 404
+
+
+def test_retry_of_a_completed_ticket_is_409(client):
+    transaction_id = submit_ticket(client, "Refund request", "I was charged twice.").json()[
+        "transaction_id"
+    ]
+
+    assert client.post("/ticket/" + transaction_id + "/retry").status_code == 409
+
+
+# ---------------------------------------------------------------------------
 # POST /feedback
 # ---------------------------------------------------------------------------
 

@@ -55,7 +55,7 @@ at the same time.
 | **Validated graph** | Missing dependency, self-dependency, cycle and duplicate name are all rejected in the constructor, not at run time. |
 | **Parallelism where it is free** | Same-level stages run on a `ThreadPoolExecutor`. |
 | **Resumability** | Every stage output is persisted as it completes; a re-run loads completed stages instead of recomputing them. |
-| **Honest status** | `GET /ticket/{id}/status` reads the very rows the engine writes, so it cannot drift from reality. |
+| **Honest status** | `GET /ticket/{id}/status` reads the very rows the engine writes, so it cannot drift from reality - including *while the pipeline is still running*. |
 
 ## Failure semantics
 
@@ -99,12 +99,13 @@ in this process.
 ## `TriageService`
 
 Owns every component (classifier, sentiment analyser, retriever, LLM client,
-agent, bandit, state store, engine) and exposes exactly three operations, which
-map one-to-one onto the three required endpoints:
+agent, bandit, state store, engine) and exposes four operations, which map
+one-to-one onto the endpoints that change or read ticket state:
 
 | Method | Endpoint |
 |--------|----------|
 | `handle_ticket` | `POST /ticket` |
+| `retry_ticket` | `POST /ticket/{id}/retry` |
 | `handle_feedback` | `POST /feedback` |
 | `get_status` | `GET /ticket/{id}/status` |
 
@@ -112,9 +113,25 @@ Plus `rl_statistics`, `workflow_description` and `health` for the inspection
 endpoints. `startup()` trains the classifier, indexes the knowledge base and
 reloads the bandit state; it is called from the FastAPI lifespan hook.
 
+## Retrying
+
+`POST /ticket/{id}/retry` is the resumable engine made usable. It reloads the
+stored request, runs the graph again with `resume=True`, and returns the normal
+ticket payload plus `stages_reused` and `stages_executed` so the saving is
+visible rather than claimed:
+
+```
+first attempt : retrieve_knowledge FAILED, agent + compose skipped
+retry         : reused classify, sentiment, urgency, select_configuration
+                executed retrieve_knowledge, run_agent, compose_response
+```
+
+It returns 404 for an unknown transaction and 409 for one that already
+completed.
+
 ## Tests
 
-`tests/test_workflow_engine.py` (24 tests) covers level computation, all four
+`tests/test_workflow_engine.py` (26 tests) covers level computation, all four
 rejection cases, failure and skip propagation, resume, retry-of-one-stage, and
 the state store. Real parallelism is proved with a `threading.Barrier` that only
 passes if two stages genuinely run at the same time.
