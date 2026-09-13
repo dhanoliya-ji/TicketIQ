@@ -15,10 +15,10 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 191 passing, **98%** coverage of `app/` |
+| **Tests** | 203 passing, **98%** coverage of `app/` |
 | **Classifier** | 92.5% accuracy / 0.925 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
-| **Demo UI** | A live console at `/`, served by the same app — no build step, no new dependency |
+| **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
 | **Stack** | FastAPI · Pydantic · VADER · SQLite · pytest · black · ruff · Docker · GitHub Actions |
 
 ---
@@ -26,7 +26,7 @@ rather than one monolithic function.
 ## Table of contents
 
 - [Quick start](#quick-start)
-- [The live console](#the-live-console)
+- [The console](#the-console)
 - [Architecture](#architecture)
 - [API reference](#api-reference)
 - [Language model setup](#language-model-setup)
@@ -60,9 +60,9 @@ pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Then open **<http://localhost:8000/>** — the live console, where you can run
-tickets, watch the pipeline stages light up, rate the answers and see the
-bandit learn. <http://localhost:8000/docs> is the interactive API documentation.
+Then open **<http://localhost:8000/>** — the console, where you can triage
+tickets and rate the answers. <http://localhost:8000/docs> is the interactive
+API documentation.
 
 From the command line:
 
@@ -103,36 +103,42 @@ python data/generate_tickets.py        # regenerate the labelled dataset
 
 ---
 
-## The live console
+## The console
 
 Open **<http://localhost:8000/>** once the service is running. It is three
 static files (`app/static/`) served by the same FastAPI process — same origin,
-no CORS setup, no `npm install`, no build step, and no extra Python dependency.
+no CORS setup, no `npm install`, no build step, no extra Python dependency.
 Full notes in [app/static/README.md](app/static/README.md).
 
-| Section | What you can demo with it |
-|---------|---------------------------|
-| **1 · Submit a ticket** | Four one-click samples, each chosen to trigger a different agent behaviour: a refund that calls a tool, an outage that escalates, a lockout that checks account status, a feature request that is never escalated. |
-| **2 · Workflow engine** | The DAG drawn from `/workflow/graph`, with each stage lighting up in dependency order and level 0 boxed as "these two run in parallel". |
-| **3 · Triage result** | Category and confidence, the urgency meter, per-aspect sentiment with the evidence sentence, the retrieved chunks with similarity bars, the complete reasoning trace including tool observations, the reply, and thumbs up / down. |
-| **4 · Reinforcement learning** | Stat tiles, average reward per configuration for any state, and a **30-ticket demo** that makes the bandit visibly abandon the configurations the customer dislikes. |
-| **5 · Session activity** | Every HTTP call the page made, so an audience can see there is nothing pre-baked. |
+The page answers one question — *what should happen to this ticket?* — so the
+suggested reply is the biggest thing on it, and the justification sits in
+collapsed sections:
 
-**The stage animation is a replay, labelled as one.** The pipeline finishes in
-about 0.1 s, too fast to watch, so the page reads the *real* per-stage durations
-from `GET /ticket/{id}/status` and replays them at 26× slower. The milliseconds
-shown on each stage are the true measured values.
+| Always visible | Collapsed, one click away |
+|----------------|---------------------------|
+| Subject, description, customer tier | **Analysis** — sentiment per aspect, and the knowledge base sections quoted |
+| Category, urgency, action, handling time | **Agent reasoning** — each step and any tool result |
+| The suggested reply | **Processing steps** — the seven stages and their real durations |
+| Was this helpful? | **Routing performance** — reward per configuration for this kind of ticket |
 
-### Suggested 90-second demo
+Colour is used in three places only — urgency, the action, and sentiment
+polarity — and each always shows its word too, so colour is never the only
+signal.
 
-1. Click **Enterprise outage** → **Run pipeline**. Watch level 0 run two stages
-   at once, then the agent decide **escalate to human**.
-2. Click **Feature request** → **Run pipeline**. Same pipeline, and the agent
-   answers instead of escalating — the escalation policy says a missing feature
-   is not an outage.
-3. Rate an answer 👍 and point at the reward line: `1 × 10 − latency`.
-4. Hit **Run 30-ticket demo** and watch the losing configurations flatten out
-   while the favoured one takes over the chart.
+### Suggested demo
+
+The four example links fill the form for you, and each takes a different path
+through the system:
+
+| Example | What it shows |
+|---------|---------------|
+| **Outage** | Enterprise + high urgency + technical → the agent **escalates to a human** |
+| **Feature request** | Same pipeline, but the agent **answers** — the escalation policy says a missing feature is not an outage |
+| **Login problem** | The agent calls `check_account_status` before answering |
+| **Duplicate charge** | The agent calls `check_refund_eligibility` before promising any money |
+
+Then rate a reply and open **Routing performance** to see the reward
+(`feedback × 10 − latency`) land against the configuration that produced it.
 
 ---
 
@@ -526,7 +532,7 @@ has nothing left to do, so it is not a dependency at all. `app/ml/tfidf.py`,
 ## Testing
 
 ```bash
-pytest                                              # 191 tests
+pytest                                              # 203 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -538,12 +544,12 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | File | Covers | Tests |
 |------|--------|-------|
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search | 33 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search, category-aware re-ranking | 39 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, step limit | 24 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
-| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, the console routes | 26 |
+| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, the console routes | 28 |
 | `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, selective retry | 12 |
 
 **Coverage: 98% of `app/`** — 100% on the bandit, the DAG engine, the
@@ -584,7 +590,7 @@ TicketIQ/
 │   ├── agent/                  # ReAct loop and the mock tools
 │   ├── rl/                     # contextual bandit, state and reward
 │   ├── workflow/               # DAG engine, SQLite state store, the triage pipeline
-│   └── static/                 # the live console (plain HTML, CSS, JavaScript)
+│   └── static/                 # the console (plain HTML, CSS, JavaScript)
 ├── data/
 │   ├── generate_tickets.py     # deterministic dataset generator
 │   ├── tickets.json            # 160 labelled synthetic tickets
@@ -592,7 +598,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 191 tests, 98% coverage
+├── tests/                      # 203 tests, 98% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml
@@ -665,9 +671,9 @@ disk. Running several replicas would need the bandit statistics moved into share
 storage — the `save`/`load` seam in `app/rl/bandit.py` is where that would go.
 
 **The console is an addition, not a deliverable.** The brief asked for a
-back-end service. The UI exists so the system can be demonstrated without a
-terminal; it adds no dependency, touches no pipeline code, and every number it
-shows comes from a real API call.
+back-end service. The UI exists so the system can be operated and demonstrated
+without a terminal; it adds no dependency and every number it shows comes from
+a real API call.
 
 **Not implemented by choice:** authentication, rate limiting, multi-language
 support, and streaming responses. None were in the brief.

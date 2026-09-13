@@ -347,6 +347,37 @@ def test_stage_duration_is_measured(tmp_path):
     assert record.duration_seconds > 0.0
 
 
+def test_the_store_recreates_its_schema_if_the_file_is_deleted(tmp_path):
+    """Deleting the database file must not break the running service.
+
+    SQLite quietly creates a fresh, empty file on the next connection. A store
+    that created its tables only once would then raise "no such table" on every
+    request until the process restarted.
+    """
+    path = tmp_path / "state.sqlite3"
+    store = WorkflowStateStore(path)
+    store.create_ticket("tx-before", {"subject": "hello"})
+
+    # An operator cleans up var/, or a container volume is remounted.
+    path.unlink()
+
+    # The same store object must keep working, on a now-empty database.
+    store.create_ticket("tx-after", {"subject": "still works"})
+    store.complete_stage("tx-after", "classify_ticket", {"category": "billing"})
+
+    assert store.get_ticket("tx-after")["request"]["subject"] == "still works"
+    assert store.get_stage("tx-after", "classify_ticket").output == {"category": "billing"}
+    # The old row is genuinely gone - the file was deleted, after all.
+    assert store.get_ticket("tx-before") is None
+
+
+def test_the_store_works_when_the_folder_does_not_exist_yet(tmp_path):
+    store = WorkflowStateStore(tmp_path / "nested" / "deeper" / "state.sqlite3")
+    store.create_ticket("tx-1", {"subject": "hello"})
+
+    assert store.get_ticket("tx-1") is not None
+
+
 def test_stage_records_survive_a_new_store_object(tmp_path):
     path = tmp_path / "state.sqlite3"
     first_store = WorkflowStateStore(path)

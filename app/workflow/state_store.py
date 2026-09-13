@@ -74,50 +74,57 @@ class WorkflowStateStore:
     def __init__(self, database_path: Path) -> None:
         self.database_path = database_path
         self.lock = threading.Lock()
-        self._create_tables()
 
     # ------------------------------------------------------------------
     # Setup
     # ------------------------------------------------------------------
     def _connect(self) -> sqlite3.Connection:
+        """Open a connection and guarantee the schema exists on it.
+
+        The ``CREATE TABLE IF NOT EXISTS`` statements run on *every* connection
+        rather than once at start-up, which makes the store self-healing.
+
+        This is not theoretical: if the database file is deleted, moved or
+        restored while the service is running - a cleaned ``var/`` folder, a
+        container volume remounted, an operator tidying up - SQLite silently
+        creates a fresh empty file on the next connection, and a store that had
+        only created its tables once would then raise "no such table" on every
+        request until the process was restarted. Two IF NOT EXISTS statements
+        against an existing schema cost microseconds, which is a price worth
+        paying to never serve that error.
+        """
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(str(self.database_path))
         connection.row_factory = sqlite3.Row
-        return connection
 
-    def _create_tables(self) -> None:
-        with self.lock:
-            connection = self._connect()
-            try:
-                connection.execute("""
-                    CREATE TABLE IF NOT EXISTS tickets (
-                        transaction_id  TEXT PRIMARY KEY,
-                        created_at      REAL NOT NULL,
-                        status          TEXT NOT NULL,
-                        request_json    TEXT NOT NULL,
-                        result_json     TEXT,
-                        config_name     TEXT,
-                        state_key       TEXT,
-                        latency_seconds REAL,
-                        feedback_score  INTEGER,
-                        reward          REAL
-                    )
-                    """)
-                connection.execute("""
-                    CREATE TABLE IF NOT EXISTS stage_runs (
-                        transaction_id TEXT NOT NULL,
-                        stage_name     TEXT NOT NULL,
-                        status         TEXT NOT NULL,
-                        output_json    TEXT,
-                        error          TEXT,
-                        started_at     REAL,
-                        finished_at    REAL,
-                        PRIMARY KEY (transaction_id, stage_name)
-                    )
-                    """)
-                connection.commit()
-            finally:
-                connection.close()
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS tickets (
+                transaction_id  TEXT PRIMARY KEY,
+                created_at      REAL NOT NULL,
+                status          TEXT NOT NULL,
+                request_json    TEXT NOT NULL,
+                result_json     TEXT,
+                config_name     TEXT,
+                state_key       TEXT,
+                latency_seconds REAL,
+                feedback_score  INTEGER,
+                reward          REAL
+            )
+            """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS stage_runs (
+                transaction_id TEXT NOT NULL,
+                stage_name     TEXT NOT NULL,
+                status         TEXT NOT NULL,
+                output_json    TEXT,
+                error          TEXT,
+                started_at     REAL,
+                finished_at    REAL,
+                PRIMARY KEY (transaction_id, stage_name)
+            )
+            """)
+        connection.commit()
+        return connection
 
     # ------------------------------------------------------------------
     # Tickets

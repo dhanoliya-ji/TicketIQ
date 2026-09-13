@@ -11,7 +11,7 @@ from app.ml.aspect_sentiment import (
 from app.ml.dataset import CATEGORIES, load_tickets, stratified_split
 from app.ml.urgency import score_urgency, urgency_bucket
 from app.rag.chunking import chunk_knowledge_base, chunk_markdown_document
-from app.rag.retriever import KnowledgeRetriever
+from app.rag.retriever import KnowledgeRetriever, topic_of_document
 from app.rag.vector_store import InMemoryVectorStore
 from app.settings import SETTINGS
 
@@ -309,3 +309,100 @@ def test_retriever_must_be_loaded_first():
     retriever = KnowledgeRetriever(SETTINGS.knowledge_base_dir)
     with pytest.raises(RuntimeError):
         retriever.retrieve("subject", "body", "billing", top_k=2)
+
+
+def test_retriever_rejects_a_bad_top_k():
+    retriever = KnowledgeRetriever(SETTINGS.knowledge_base_dir).load()
+    with pytest.raises(ValueError):
+        retriever.retrieve("subject", "body", "billing", top_k=0)
+
+
+# --- category aware re-ranking -------------------------------------------
+
+
+def test_document_topics_are_mapped_and_escalation_is_universal():
+    assert topic_of_document("01_billing_refund_policy.md") == "billing"
+    assert topic_of_document("03_technical_troubleshooting.md") == "technical"
+    # The escalation rules apply to every category, so they have no topic.
+    assert topic_of_document("05_escalation_rules.md") is None
+    # An unknown document is treated as topic-less rather than crashing.
+    assert topic_of_document("99_unknown.md") is None
+
+
+def test_an_outage_does_not_retrieve_feature_request_policy():
+    """The bug this re-ranking exists to fix.
+
+    Plain cosine similarity put "Wording to use" from the feature-request
+    document into the top 2 for a total outage, and the agent then quoted
+    "thank the customer for the idea" at a customer whose platform was down.
+    """
+    retriever = KnowledgeRetriever(SETTINGS.knowledge_base_dir).load()
+
+    hits = retriever.retrieve(
+        "Total outage, dashboard is down",
+        "Every API call returns a 500 error and the whole platform is unusable. "
+        "Our team is completely blocked.",
+        "technical",
+        top_k=2,
+    )
+
+    sources = [hit.chunk.source for hit in hits]
+    assert not any("feature_request" in source for source in sources)
+    assert any("technical" in source for source in sources)
+
+
+def test_every_category_retrieves_its_own_document_first():
+    retriever = KnowledgeRetriever(SETTINGS.knowledge_base_dir).load()
+
+    cases = [
+        ("billing", "Charged twice", "My card was charged twice and I want a refund.", "billing"),
+        ("account", "Cannot log in", "The password reset email never arrives.", "account"),
+        (
+            "technical",
+            "Dashboard is slow",
+            "Every chart takes thirty seconds to load.",
+            "technical",
+        ),
+        (
+            "feature_request",
+            "Please add dark mode",
+            "It would be great to have a dark theme.",
+            "feature_request",
+        ),
+    ]
+
+    for category, subject, body, expected_in_source in cases:
+        hits = retriever.retrieve(subject, body, category, top_k=1)
+        assert expected_in_source in hits[0].chunk.source, category
+
+
+def test_escalation_rules_stay_reachable_for_any_category():
+    """A universal document must not be damped for any category."""
+    retriever = KnowledgeRetriever(SETTINGS.knowledge_base_dir).load()
+
+    hits = retriever.retrieve(
+        "Enterprise outage, we want to cancel",
+        "We are on the enterprise tier, the service is down and I want to speak to a manager.",
+        "technical",
+        top_k=3,
+    )
+
+    sources = [hit.chunk.source for hit in hits]
+    assert any("escalation" in source for source in sources)
+
+
+def test_a_strongly_matching_off_topic_chunk_can_still_win():
+    """Damping lowers off-topic chunks, it does not ban them."""
+    retriever = KnowledgeRetriever(SETTINGS.knowledge_base_dir).load()
+
+    # A refund question mislabelled as technical: the billing document is still
+    # by far the best textual match, so it must survive the damping.
+    hits = retriever.retrieve(
+        "Refund for a duplicate charge",
+        "The same invoice amount was charged twice to my credit card and I want the "
+        "duplicate refunded.",
+        "technical",
+        top_k=1,
+    )
+
+    assert "billing" in hits[0].chunk.source

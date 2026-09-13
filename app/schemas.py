@@ -5,7 +5,7 @@ screen, and FastAPI turns them into the OpenAPI documentation served at
 ``/docs`` automatically.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # The tiers a customer can be on. Anything else is rejected with a 422.
 ALLOWED_TIERS = ["free", "pro", "enterprise"]
@@ -23,6 +23,19 @@ class TicketRequest(BaseModel):
         default="free",
         description="One of: free, pro, enterprise.",
     )
+
+    @field_validator("subject", "body")
+    @classmethod
+    def must_not_be_only_whitespace(cls, value: str) -> str:
+        """Reject "   " as empty, and trim the text that is stored.
+
+        ``min_length`` alone counts spaces, so a ticket of three spaces would
+        otherwise pass validation and then be classified on no words at all.
+        """
+        trimmed = value.strip()
+        if trimmed == "":
+            raise ValueError("must contain some text, not only whitespace")
+        return trimmed
 
     model_config = {
         "json_schema_extra": {

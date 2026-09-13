@@ -1,82 +1,78 @@
-# `app/static/` — the live console
+# `app/static/` — the console
 
-The demo UI, served by the FastAPI application itself at
+The operator interface, served by the FastAPI application itself at
 **<http://localhost:8000/>**.
 
 | File | What it does |
 |------|--------------|
-| `index.html` | Page structure: the five sections of the console. |
-| `styles.css` | All styling, the colour tokens and the animations. |
-| `app.js` | Everything behavioural: API calls, the DAG replay, rendering, the charts. |
+| `index.html` | Page structure: the ticket form and the result. |
+| `styles.css` | All styling. Neutral greys, one accent colour. |
+| `app.js` | API calls and rendering. |
 
 ## Why plain HTML, CSS and JavaScript
 
 No React, no bundler, no `npm install`, no new Python dependency. Three static
-files served by the same FastAPI process that serves the API, which means:
+files served by the same FastAPI process, which means:
 
 - **Same origin**, so there is no CORS configuration to get wrong.
-- **Nothing to build.** Clone the repo, start uvicorn, open the page. The
-  Dockerfile already copies `app/`, so the container serves it too.
-- **Nothing to keep in sync.** The page reads `/workflow/graph`, `/health` and
-  `/rl/stats`, so the DAG picture and the statistics *are* the service's real
-  state rather than a drawing that drifts.
+- **Nothing to build.** Clone, start uvicorn, open the page. The Dockerfile
+  already copies `app/`, so the container serves it too.
 
-The brief asked for a back-end service, so this is an addition for
-demonstrating the system, not a required deliverable. It adds no dependency and
-does not touch any pipeline code.
+The brief asked for a back-end service, so this is an addition for operating and
+demonstrating the system, not a required deliverable.
 
-## What the page shows
+## What is on the page, and what is deliberately not
 
-| Section | What it demonstrates |
-|---------|----------------------|
-| 1 Submit a ticket | Four one-click samples chosen to trigger four different agent behaviours |
-| 2 Workflow engine | The DAG from `/workflow/graph`, animated per stage, with level 0 boxed as parallel |
-| 3 Triage result | Category + confidence, urgency, aspect sentiment, retrieved chunks with scores, the full reasoning trace, the reply, and the feedback buttons |
-| 4 Reinforcement learning | Stat tiles, average reward per configuration per state, and a 30-ticket demo that makes the bandit visibly converge |
-| 5 Session activity | Every HTTP call the page has made |
+The page answers one question — *what should happen to this ticket?* — so the
+suggested reply is the largest thing on screen and everything that justifies it
+is one click away in a collapsed section.
 
-## The DAG animation is a replay, not a live feed
+| Always visible | Why |
+|----------------|-----|
+| Subject, description, customer tier, submit | The only inputs the service takes |
+| Category, urgency, action, handling time | The triage decision in four words |
+| Suggested reply | The actual work product |
+| Was this helpful? | The feedback that trains the routing |
 
-The pipeline finishes in about 0.1 seconds, which is far too fast to watch. So
-the page:
+| Collapsed | Opened when someone asks |
+|-----------|--------------------------|
+| **Analysis** | "Why that category?" — sentiment per aspect, and the exact knowledge base sections quoted |
+| **Agent reasoning** | "Why did it escalate?" — each step, and any tool result |
+| **Processing steps** | "Is it actually doing all that?" — the seven stages and their real durations, read from the workflow engine's state store |
+| **Routing performance** | "What is it learning?" — reward per configuration for this kind of ticket |
 
-1. `POST /ticket` and waits for the real result;
-2. `GET /ticket/{id}/status` to read the **real recorded per-stage durations**;
-3. replays those durations, slowed by `REPLAY_SLOWDOWN` (26x), with each level's
-   stages starting together because that is how they actually ran.
+Deliberately **not** here: request logs, live charts, system statistics, and a
+simulator that fires synthetic tickets. They were interesting to build and
+useless to someone doing the job. The same numbers remain available at
+`/rl/stats`, `/ml/report` and `/workflow/graph` for anyone who wants them, and
+`scripts/simulate_bandit.py` is where the learning experiment belongs.
 
-The millisecond figure on each finished node is the true measured duration, and
-the note under the heading says the replay is slowed. Nothing is invented.
+## Colour
 
-## Two colour systems, deliberately separate
+Neutral greys and a single accent (`--accent`, a blue that clears contrast on
+white). Colour appears in exactly three places, and in all of them the word is
+shown as well, so colour is never the only signal:
 
-**Data colours carry meaning** and live as tokens in `styles.css`:
+- urgency — low / medium / high
+- the action — answer or escalate
+- sentiment polarity — positive / neutral / negative
 
-- `--series-1..4` are the four bandit configurations. These four hues are a
-  validated categorical set for this dark surface — they clear the colour-blind
-  separation, chroma, lightness-band and contrast checks *as a group*. **Do not
-  substitute them by eye**; re-validate if you change them.
-- `--status-*` are used for sentiment polarity and urgency. A status colour is
-  never alone: the word ("negative", "high") is always next to it.
-- `--seq-*` is a single-hue blue ramp for magnitudes (confidence, similarity).
+No gradients and no decorative animation. The only motion is the submit spinner
+and a short fade when the result appears, and both are disabled under
+`prefers-reduced-motion: reduce`.
 
-**Decorative colours carry no meaning** — the drifting hero gradient, the button
-sheen — and are free to be vivid.
+## Behaviour worth knowing
 
-The reward chart also ships a plain `<table>` of the same numbers underneath, so
-the values are readable without relying on colour or bar length at all.
-
-## Accessibility and layout notes
-
-- Every animation is disabled under `prefers-reduced-motion: reduce`, while the
-  state changes themselves still happen.
-- Bar rows are direct-labelled with their value and pull count; the colour
-  swatch never carries identity alone.
-- The layout collapses to one column below 720px.
-- The page commits to a dark theme and paints its own background explicitly.
+- The previous result is **hidden the moment a new ticket is submitted**, so
+  stale figures can never be mistaken for fresh ones.
+- Errors are rendered as a sentence, not a status code: a failed pipeline names
+  the stage that broke, and a duplicate rating says so.
+- The feedback buttons lock after one use, matching the API, which accepts one
+  rating per ticket.
+- Every figure comes from a real API call. Nothing is pre-computed.
 
 ## Editing it
 
-There is no build step — edit a file and reload the browser. If you run uvicorn
-with `--reload`, note that it watches Python files; static files are read per
-request, so a plain browser refresh is enough.
+There is no build step — edit a file and reload the browser. `uvicorn --reload`
+watches Python files; static files are read per request, so a plain refresh is
+enough.

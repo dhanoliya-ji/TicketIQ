@@ -1,287 +1,165 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TicketIQ — Live Console</title>
+  <title>TicketIQ</title>
   <link rel="stylesheet" href="/static/styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎫</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232a78d6'/><text x='16' y='23' font-size='19' font-family='system-ui' font-weight='600' fill='white' text-anchor='middle'>T</text></svg>" />
 </head>
 <body>
 
-<!-- ===================================================================
-     Header: the live state of the running service.
-     =================================================================== -->
-<header class="hero">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="hero-inner">
-    <div class="hero-title">
-      <span class="logo" aria-hidden="true">🎫</span>
-      <div>
-        <h1>TicketIQ</h1>
-        <p class="tagline">Self-optimizing support triage — classify, retrieve, reason, learn.</p>
-      </div>
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">T</span>
+      <span class="brand-name">TicketIQ</span>
+      <span class="brand-sub">Support triage</span>
     </div>
-
-    <div class="health-strip" id="health-strip">
-      <div class="pill pill-loading" id="pill-status"><span class="dot"></span><span>connecting…</span></div>
-      <div class="pill" id="pill-backend" hidden><span class="pill-key">LLM</span><span class="pill-value">—</span></div>
-      <div class="pill" id="pill-chunks" hidden><span class="pill-key">KB chunks</span><span class="pill-value">—</span></div>
-      <div class="pill" id="pill-accuracy" hidden><span class="pill-key">Classifier</span><span class="pill-value">—</span></div>
-      <div class="pill" id="pill-updates" hidden><span class="pill-key">RL updates</span><span class="pill-value">—</span></div>
-    </div>
+    <p class="status" id="status" role="status">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </p>
   </div>
 </header>
 
-<main>
+<main class="wrap">
 
-  <!-- =================================================================
-       1. Compose a ticket
-       ================================================================= -->
-  <section class="panel" id="compose-panel">
-    <div class="panel-head">
-      <h2><span class="step-chip">1</span> Submit a ticket</h2>
-      <p class="panel-sub">Pick a sample or write your own, then watch the pipeline run.</p>
-    </div>
+  <!-- ------------------------------------------------------------------
+       Submit a ticket
+       ------------------------------------------------------------------ -->
+  <section class="card">
+    <h1 class="card-title">New ticket</h1>
 
-    <div class="samples" id="samples" role="group" aria-label="Sample tickets"></div>
-
-    <form id="ticket-form" autocomplete="off">
-      <label class="field">
-        <span class="field-label">Subject</span>
-        <input type="text" id="subject" name="subject" maxlength="300" required
-               placeholder="Charged twice on order 4471" />
-      </label>
-
-      <label class="field">
-        <span class="field-label">Body</span>
-        <textarea id="body" name="body" rows="4" maxlength="5000" required
-                  placeholder="My credit card was charged twice for the same monthly invoice…"></textarea>
-      </label>
-
-      <div class="field-row">
-        <div class="field">
-          <span class="field-label">Customer tier</span>
-          <div class="tier-group" role="radiogroup" aria-label="Customer tier">
-            <button type="button" class="tier" data-tier="free">free</button>
-            <button type="button" class="tier is-selected" data-tier="pro">pro</button>
-            <button type="button" class="tier" data-tier="enterprise">enterprise</button>
-          </div>
-        </div>
-
-        <button type="submit" class="run-button" id="run-button">
-          <span class="run-label">Run pipeline</span>
-          <span class="run-spinner" aria-hidden="true"></span>
-        </button>
+    <form id="ticket-form" autocomplete="off" novalidate>
+      <div class="field">
+        <label class="label" for="subject">Subject</label>
+        <input type="text" id="subject" maxlength="300" placeholder="Charged twice on order 4471" />
       </div>
+
+      <div class="field">
+        <label class="label" for="body">Description</label>
+        <textarea id="body" rows="5" maxlength="5000"
+                  placeholder="Describe the problem…"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="tier">Customer tier</label>
+        <select id="tier">
+          <option value="free">Free</option>
+          <option value="pro" selected>Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button button-primary" id="submit-button">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="submit-label">Triage ticket</span>
+        </button>
+        <div class="examples">
+          <span class="examples-label">Examples:</span>
+          <span id="examples"></span>
+        </div>
+      </div>
+
+      <p class="alert" id="form-error" hidden role="alert"></p>
     </form>
-
-    <p class="form-error" id="form-error" hidden role="alert"></p>
   </section>
 
-  <!-- =================================================================
-       2. The workflow DAG, animated
-       ================================================================= -->
-  <section class="panel" id="pipeline-panel">
-    <div class="panel-head">
-      <h2><span class="step-chip">2</span> Workflow engine</h2>
-      <p class="panel-sub">
-        Seven stages with declared dependencies. Level&nbsp;0 runs on two threads.
-        <span class="note" id="replay-note" hidden></span>
-      </p>
+  <!-- ------------------------------------------------------------------
+       The result
+       ------------------------------------------------------------------ -->
+  <section class="card" id="result" hidden>
+    <div class="result-head">
+      <h2 class="card-title">Triage result</h2>
+      <span class="ref" id="result-ref"></span>
     </div>
 
-    <div class="dag" id="dag"></div>
-  </section>
+    <dl class="summary">
+      <div class="summary-item">
+        <dt>Category</dt>
+        <dd id="out-category">—</dd>
+      </div>
+      <div class="summary-item">
+        <dt>Urgency</dt>
+        <dd><span class="tag" id="out-urgency">—</span></dd>
+      </div>
+      <div class="summary-item">
+        <dt>Action</dt>
+        <dd><span class="tag" id="out-action">—</span></dd>
+      </div>
+      <div class="summary-item">
+        <dt>Handled in</dt>
+        <dd id="out-latency">—</dd>
+      </div>
+    </dl>
 
-  <!-- =================================================================
-       3. What the pipeline decided
-       ================================================================= -->
-  <section class="panel reveal" id="result-panel" hidden>
-    <div class="panel-head">
-      <h2><span class="step-chip">3</span> Triage result</h2>
-      <p class="panel-sub">Transaction <code id="result-tx">—</code></p>
-    </div>
-
-    <!-- Headline readings -->
-    <div class="reading-grid">
-      <article class="reading">
-        <h3>Category</h3>
-        <p class="reading-value" id="out-category">—</p>
-        <div class="meter" role="img" aria-label="Classifier confidence">
-          <div class="meter-fill meter-confidence" id="out-confidence-bar"></div>
-        </div>
-        <p class="reading-foot"><span id="out-confidence">—</span> confidence · Naive Bayes</p>
-      </article>
-
-      <article class="reading">
-        <h3>Urgency</h3>
-        <p class="reading-value"><span id="out-urgency-bucket">—</span></p>
-        <div class="meter" role="img" aria-label="Urgency score">
-          <div class="meter-fill" id="out-urgency-bar"></div>
-        </div>
-        <p class="reading-foot">score <span id="out-urgency-score">—</span> · category + sentiment + tier</p>
-      </article>
-
-      <article class="reading">
-        <h3>Agent decision</h3>
-        <p class="reading-value"><span class="decision" id="out-action">—</span></p>
-        <p class="reading-foot" id="out-tools">—</p>
-      </article>
-
-      <article class="reading">
-        <h3>Configuration chosen</h3>
-        <p class="reading-value mono" id="out-config">—</p>
-        <p class="reading-foot">
-          by <span id="out-reason">—</span> · state <code id="out-state">—</code>
-        </p>
-      </article>
-    </div>
-
-    <!-- Aspect sentiment -->
-    <div class="subsection">
-      <h3 class="subsection-title">Aspect sentiment</h3>
-      <p class="subsection-sub">Each product aspect is scored on its own, not one score for the whole ticket.</p>
-      <div class="aspects" id="out-aspects"></div>
-    </div>
-
-    <!-- Retrieved knowledge -->
-    <div class="subsection">
-      <h3 class="subsection-title">Retrieved knowledge <span class="count" id="out-topk"></span></h3>
-      <p class="subsection-sub">Cosine similarity over the policy knowledge base.</p>
-      <div class="snippets" id="out-snippets"></div>
-    </div>
-
-    <!-- Reasoning trace -->
-    <div class="subsection">
-      <h3 class="subsection-title">Agent reasoning trace</h3>
-      <p class="subsection-sub">Every thought, action and observation, in order.</p>
-      <ol class="trace" id="out-trace"></ol>
-    </div>
-
-    <!-- The reply + feedback -->
-    <div class="subsection">
-      <h3 class="subsection-title">Reply to the customer</h3>
+    <div class="reply-block">
+      <h3 class="section-title">Suggested reply</h3>
       <div class="reply" id="out-reply"></div>
+    </div>
 
-      <div class="feedback" id="feedback-block">
-        <p class="feedback-prompt">Was this helpful? Your answer trains the bandit.</p>
-        <div class="feedback-buttons">
-          <button class="fb fb-up" id="fb-up"><span aria-hidden="true">👍</span> Helpful</button>
-          <button class="fb fb-down" id="fb-down"><span aria-hidden="true">👎</span> Not helpful</button>
-        </div>
-        <p class="feedback-result" id="feedback-result" hidden></p>
+    <div class="feedback" id="feedback">
+      <span class="feedback-question">Was this reply helpful?</span>
+      <button type="button" class="button" id="fb-yes">Yes</button>
+      <button type="button" class="button" id="fb-no">No</button>
+      <p class="feedback-note" id="feedback-note" hidden></p>
+    </div>
+
+    <!-- Supporting evidence: available, but not in the way. -->
+    <details class="details" id="details-analysis">
+      <summary>Analysis <span class="summary-hint" id="hint-analysis"></span></summary>
+      <div class="details-body">
+        <h4 class="detail-title">Sentiment by aspect</h4>
+        <ul class="aspects" id="out-aspects"></ul>
+
+        <h4 class="detail-title">Knowledge base sections used</h4>
+        <ul class="sources" id="out-sources"></ul>
       </div>
-    </div>
-  </section>
+    </details>
 
-  <!-- =================================================================
-       4. The reinforcement learning dashboard
-       ================================================================= -->
-  <section class="panel" id="rl-panel">
-    <div class="panel-head">
-      <h2><span class="step-chip">4</span> Reinforcement learning</h2>
-      <p class="panel-sub">
-        reward = feedback&nbsp;&times;&nbsp;10 &minus; latency. The bandit learns a
-        best configuration <em>per state</em>.
-      </p>
-    </div>
-
-    <div class="tiles" id="rl-tiles">
-      <article class="tile">
-        <p class="tile-label">Total updates</p>
-        <p class="tile-value" id="tile-updates">0</p>
-        <p class="tile-foot">rewards applied</p>
-      </article>
-      <article class="tile">
-        <p class="tile-label">States seen</p>
-        <p class="tile-value" id="tile-states">0</p>
-        <p class="tile-foot">of 36 possible</p>
-      </article>
-      <article class="tile">
-        <p class="tile-label">Explored</p>
-        <p class="tile-value" id="tile-explore">0</p>
-        <p class="tile-foot">random / cold-start picks</p>
-      </article>
-      <article class="tile">
-        <p class="tile-label">Exploited</p>
-        <p class="tile-value" id="tile-exploit">0</p>
-        <p class="tile-foot">best-known picks</p>
-      </article>
-    </div>
-
-    <div class="chart-block">
-      <div class="chart-head">
-        <div>
-          <h3 class="subsection-title">Average reward by configuration</h3>
-          <p class="subsection-sub" id="chart-state-sub">No feedback recorded yet.</p>
-        </div>
-        <label class="field field-inline">
-          <span class="field-label">State</span>
-          <select id="state-select" aria-label="Reinforcement learning state"></select>
-        </label>
+    <details class="details" id="details-reasoning">
+      <summary>Agent reasoning <span class="summary-hint" id="hint-reasoning"></span></summary>
+      <div class="details-body">
+        <ol class="trace" id="out-trace"></ol>
       </div>
+    </details>
 
-      <div class="bars" id="rl-bars" role="img" aria-label="Average reward by configuration"></div>
-      <table class="data-table" id="rl-table">
-        <caption class="visually-hidden">Average reward and pull count per configuration</caption>
-        <thead>
-          <tr><th scope="col">Configuration</th><th scope="col">Pulls</th><th scope="col">Avg reward</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <!-- The auto demo: the fastest way to show learning to an audience -->
-    <div class="demo-block">
-      <div class="demo-copy">
-        <h3 class="subsection-title">Watch it learn</h3>
-        <p class="subsection-sub">
-          Sends 30 identical tickets and rewards only the configuration you pick as
-          the "customer favourite". The bandit should abandon the others.
-        </p>
+    <details class="details" id="details-processing">
+      <summary>Processing steps <span class="summary-hint" id="hint-processing"></span></summary>
+      <div class="details-body">
+        <table class="table" id="out-stages">
+          <thead>
+            <tr><th scope="col">Stage</th><th scope="col">Status</th><th scope="col">Duration</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-      <div class="demo-controls">
-        <label class="field field-inline">
-          <span class="field-label">Customer prefers</span>
-          <select id="demo-preference">
-            <option value="concise_policy">concise_policy (terse)</option>
-            <option value="empathetic_stepwise">empathetic_stepwise (detailed)</option>
-          </select>
-        </label>
-        <button class="demo-button" id="demo-button">
-          <span class="demo-label">Run 30-ticket demo</span>
-        </button>
-      </div>
-    </div>
-    <div class="demo-progress" id="demo-progress" hidden>
-      <div class="demo-bar"><div class="demo-bar-fill" id="demo-bar-fill"></div></div>
-      <p class="demo-status" id="demo-status"></p>
-      <div class="demo-picks" id="demo-picks" aria-label="Configuration chosen per ticket"></div>
-    </div>
-  </section>
+    </details>
 
-  <!-- =================================================================
-       5. Recent activity
-       ================================================================= -->
-  <section class="panel" id="log-panel">
-    <div class="panel-head">
-      <h2><span class="step-chip">5</span> Session activity</h2>
-      <p class="panel-sub">Every request this page has made to the API.</p>
-    </div>
-    <ul class="log" id="log"><li class="log-empty">Nothing yet — run a ticket above.</li></ul>
+    <details class="details" id="details-routing">
+      <summary>Routing performance <span class="summary-hint" id="hint-routing"></span></summary>
+      <div class="details-body">
+        <p class="detail-note" id="routing-note"></p>
+        <table class="table" id="out-routing">
+          <thead>
+            <tr>
+              <th scope="col">Configuration</th>
+              <th scope="col">Times used</th>
+              <th scope="col">Average reward</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
   </section>
 
 </main>
 
-<footer class="foot">
-  <p>
-    Served by the FastAPI app itself ·
-    <a href="/docs">OpenAPI docs</a> ·
-    <a href="/rl/stats">/rl/stats</a> ·
-    <a href="/workflow/graph">/workflow/graph</a> ·
-    <a href="/ml/report">/ml/report</a>
-  </p>
+<footer class="foot wrap">
+  <p><a href="/docs">API documentation</a></p>
 </footer>
 
 <script src="/static/app.js"></script>

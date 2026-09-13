@@ -160,6 +160,31 @@ def test_feedback_is_reflected_in_the_status_endpoint(service):
     assert status["reward"] < 0.0
 
 
+def test_feedback_naming_a_retired_configuration_is_refused_not_a_crash(service):
+    """A stale ticket must not take the endpoint down with a KeyError."""
+    result = service.handle_ticket("Refund request", "I was charged twice.", "pro")
+
+    # Simulate the configuration line-up changing since the ticket was answered.
+    service.bandit.actions = ["some_new_config"]
+
+    with pytest.raises(FeedbackNotAcceptedError) as error:
+        service.handle_feedback(result["transaction_id"], 1)
+    assert "no longer exists" in error.value.reason
+
+
+def test_the_pipeline_survives_its_database_being_deleted(service):
+    """Losing var/ mid-run must not break every later request."""
+    first = service.handle_ticket("Refund request", "I was charged twice.", "pro")
+    assert first["category"] == "billing"
+
+    service.store.database_path.unlink()
+
+    # The very next ticket must still work, on a rebuilt schema.
+    second = service.handle_ticket("Cannot log in", "My password is rejected.", "pro")
+    assert second["category"] == "account"
+    assert service.get_status(second["transaction_id"])["status"] == "completed"
+
+
 def test_feedback_for_an_unknown_transaction_raises(service):
     with pytest.raises(UnknownTransactionError):
         service.handle_feedback("tx-not-real", 1)

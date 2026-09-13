@@ -218,6 +218,18 @@ states that never repeat.
 | Index | in-memory cosine similarity | 28 chunks: brute force is faster than FAISS and adds no native dependency |
 | Query | `category + subject + body` | the predicted category is a cheap hint that pulls the search toward the right document |
 | Filtering | drop zero-similarity hits | better to return two relevant chunks than pad to five with noise |
+| Re-ranking | damp chunks from off-topic documents | see below |
+
+**Category-aware re-ranking.** Plain cosine similarity was not enough. A total
+outage retrieved the *feature-request* document, because "request", "team" and
+"explain" are common to both, and the agent then quoted *"thank the customer for
+the idea"* at someone whose platform was down. Each document now declares which
+category it serves; a chunk from an unrelated document has its score multiplied
+by 0.45 before the top-K is taken, and the escalation rules — which apply to
+every ticket — are never damped. An off-topic chunk therefore has to be more
+than twice the textual match to survive, which keeps it reachable when it really
+is the better answer (a refund question misclassified as technical still finds
+the refund policy) while keeping it out of the way the rest of the time.
 
 The assignment allows FAISS, ChromaDB **or** a basic in-memory cosine index;
 this is the third option. `InMemoryVectorStore.search()` has the same shape a

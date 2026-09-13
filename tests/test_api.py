@@ -118,6 +118,22 @@ def test_an_empty_subject_is_rejected(client):
     assert response.status_code == 422
 
 
+def test_a_whitespace_only_ticket_is_rejected(client):
+    # min_length alone counts spaces, so this needs its own validator.
+    response = client.post(
+        "/ticket", json={"subject": "   ", "body": "\t\n ", "customer_tier": "pro"}
+    )
+    assert response.status_code == 422
+
+
+def test_surrounding_whitespace_is_trimmed(client):
+    response = submit_ticket(client, "  Refund request  ", "  I was charged twice.  ")
+
+    assert response.status_code == 200
+    status = client.get("/ticket/" + response.json()["transaction_id"] + "/status").json()
+    assert status["request"]["subject"] == "Refund request"
+
+
 def test_a_missing_body_field_is_rejected(client):
     response = client.post("/ticket", json={"subject": "Subject"})
     assert response.status_code == 422

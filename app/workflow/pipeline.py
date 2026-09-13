@@ -331,6 +331,15 @@ class TriageService:
         state_key = str(ticket["state_key"])
         config_name = str(ticket["config_name"])
 
+        # A ticket answered by an older build could name a configuration this
+        # one no longer offers. That is a stale record, not a server fault, so
+        # it is reported as a refused feedback rather than a 500.
+        if config_name not in self.bandit.actions:
+            raise FeedbackNotAcceptedError(
+                transaction_id,
+                "this ticket used configuration '" + config_name + "', which no longer exists",
+            )
+
         self.bandit.update(state_key, config_name, reward)
         self.bandit.save(SETTINGS.bandit_state_file)
         self.store.record_feedback(transaction_id, feedback_score, reward)
