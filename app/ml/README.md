@@ -1,0 +1,69 @@
+# `app/ml/` — classical NLP and machine learning
+
+No deep learning and no `model.fit()` from scikit-learn. The counting, the
+smoothing, the TF-IDF weighting and the evaluation metrics are all written out
+by hand so the maths is visible. scikit-learn is not a dependency of this
+project at all.
+
+## Files
+
+| File | What it does |
+|------|--------------|
+| `text_utils.py` | Tokenisation: lower-case, strip punctuation, drop stop words and very short tokens. Also `join_ticket_text`, which counts the subject line twice because a support subject is a strong summary of the problem. |
+| `tfidf.py` | A TF-IDF vectoriser producing sparse vectors (plain `dict` of word to weight), plus `normalize` and `cosine_similarity`. Used by the retriever. |
+| `naive_bayes.py` | Multinomial Naive Bayes from scratch: priors, per-category word counts, Laplace smoothing, log-space scoring and a softmax confidence. |
+| `metrics.py` | `accuracy`, `precision`, `recall`, `f1_score`, `classification_report` and `confusion_matrix`, each written from its definition. |
+| `dataset.py` | Loads `data/tickets.json` into `LabelledTicket` objects and does the stratified train/test split. |
+| `classifier_service.py` | Trains the model at startup, keeps the held-out evaluation report, and answers predictions for new tickets. |
+| `aspect_sentiment.py` | Aspect spotting by keyword plus per-sentence VADER scoring, with a domain lexicon that fixes VADER's blind spots on support text. |
+| `urgency.py` | The weighted urgency score and its `low`/`medium`/`high` bucket. |
+
+## The classifier, in one box
+
+```
+score(category) = log P(category) + sum over words of  count(word) * log P(word | category)
+
+                                  count(word, category) + alpha
+P(word | category)  =  --------------------------------------------------
+                       total words in category + alpha * vocabulary size
+```
+
+Log space stops hundreds of small probabilities underflowing to zero. Laplace
+smoothing (`alpha = 1.0`) stops a single unseen word zeroing a whole category.
+Words outside the training vocabulary are **skipped** rather than smoothed, so
+an unusual word adds no evidence instead of penalising every category equally.
+
+The model trains on the training split to produce an honest quality report, then
+retrains on all 160 rows for serving — the held-out split exists to measure, not
+to throw data away.
+
+## Aspect sentiment, in three steps
+
+1. Split the ticket into sentences.
+2. Match `ASPECT_KEYWORDS` to spot which aspects each sentence mentions.
+3. Score each sentence with VADER; each aspect gets the mean of its sentences
+   and keeps the harshest one as evidence. At most three aspects are returned.
+
+**The domain lexicon matters.** VADER was built for social media, where
+"support" is a positive word ("I support you"). On support tickets it is a
+neutral product noun, so *"Support has not replied for days"* originally scored
+**positive**. `DOMAIN_LEXICON` neutralises those product nouns and adds failure
+words VADER does not know (`timeout`, `outage`, `unusable`, `nobody`).
+
+## Urgency
+
+```
+urgency = category weight (<= 0.35) + negativity of worst aspect (<= 0.35) + tier weight (<= 0.30)
+```
+
+A transparent formula beats a learned model here: a support lead can read it,
+disagree with one weight and change one number. The bucket — not the raw score —
+feeds the RL state, because a continuous value would create states that never
+repeat often enough to learn from.
+
+## Tests
+
+`tests/test_ml_classifier.py` (30 tests) checks the maths against hand-computed
+values: the IDF formula, unit-length vectors, the smoothing denominator, and
+each metric definition. `tests/test_nlp_and_rag.py` covers aspect independence,
+the urgency weighting and the stratified split.

@@ -1,0 +1,1122 @@
+[
+  {
+    "id": "T-0142",
+    "subject": "Mobile app crashes on launch",
+    "body": "Response times are very slow and requests occasionally return a gateway error. The nightly synchronisation job failed with a connection timeout error. My account is locked after several failed sign in attempts. Please add my colleague as a user with administrator permissions.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0059",
+    "subject": "Charged twice on my invoice",
+    "body": "The payment failed in the checkout but the amount left my bank account. I need a receipt for the annual payment for our accounting records. Webhook deliveries stopped arriving at our endpoint since yesterday.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0118",
+    "subject": "Idea: saved filters on the list view",
+    "body": "Saved filters on the list view would save our team a lot of clicks. Could you add the ability to edit many records at once in bulk?",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0058",
+    "subject": "Payment failed but money was taken",
+    "body": "The discount coupon was not applied to the final price at checkout. My credit card was charged twice for the same monthly invoice. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0149",
+    "subject": "Sync job crashed overnight",
+    "body": "Performance has degraded badly and the page freezes while loading data. The nightly synchronisation job failed with a connection timeout error. Our team is blocked on this right now.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0131",
+    "subject": "Mobile app crashes on launch",
+    "body": "Our integration broke right after the latest release was deployed. Can you explain the proration amount added to this billing cycle? Thanks in advance for the help.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0113",
+    "subject": "Idea: saved filters on the list view",
+    "body": "Saved filters on the list view would save our team a lot of clicks. Is a native mobile application on the roadmap for the next quarters?",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0040",
+    "subject": "Need to add a teammate",
+    "body": "A former employee still has access and their user should be removed.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0010",
+    "subject": "Change the account owner",
+    "body": "We need to transfer ownership of the workspace to a different person. Please let me know as soon as possible.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0102",
+    "subject": "Roadmap question about the mobile app",
+    "body": "We would like a public endpoint so we can pull the data ourselves.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0035",
+    "subject": "Remove a deactivated user",
+    "body": "My role no longer has permission to open the settings of our workspace.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0031",
+    "subject": "Locked out after too many attempts",
+    "body": "My account is locked after several failed sign in attempts. The CSV export times out before it finishes for large date ranges. The mobile application crashes immediately after the splash screen.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0119",
+    "subject": "Please add dark mode",
+    "body": "We would like a public endpoint so we can pull the data ourselves. My credit card was charged twice for the same monthly invoice. The renewal charge appeared even though I cancelled the subscription. Please let me know as soon as possible.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0022",
+    "subject": "Password reset email never arrives",
+    "body": "The password reset email never arrives in my inbox or my spam folder. Thanks in advance for the help.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0114",
+    "subject": "Please consider multi language support",
+    "body": "Could you add the ability to edit many records at once in bulk? Is a native mobile application on the roadmap for the next quarters?",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0134",
+    "subject": "Latency spike on the reports page",
+    "body": "Performance has degraded badly and the page freezes while loading data. We would like a public endpoint so we can pull the data ourselves. Saved filters on the list view would save our team a lot of clicks. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0024",
+    "subject": "Email address on the account is wrong",
+    "body": "I cannot log in, the login page says my password is invalid. The email address registered on the account has a typo and needs updating. Response times are very slow and requests occasionally return a gateway error. This started happening earlier this week.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0052",
+    "subject": "Wrong amount on my credit card",
+    "body": "The renewal charge appeared even though I cancelled the subscription. My credit card was charged twice for the same monthly invoice. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0157",
+    "subject": "Export keeps timing out",
+    "body": "Webhook deliveries stopped arriving at our endpoint since yesterday. Could you add the ability to edit many records at once in bulk? This started happening earlier this week.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0077",
+    "subject": "Refund request for last month",
+    "body": "We were invoiced for ten seats but our account only uses six seats. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0129",
+    "subject": "Export keeps timing out",
+    "body": "The reporting dashboard takes over thirty seconds to load any chart. This started happening earlier this week.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0137",
+    "subject": "Dashboard is extremely slow",
+    "body": "The reporting dashboard takes over thirty seconds to load any chart. Saved filters on the list view would save our team a lot of clicks. Could you add the ability to edit many records at once in bulk? I am happy to share more details if you need them.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0030",
+    "subject": "Single sign on login fails",
+    "body": "The two factor authentication code is rejected every time I enter it. My account is locked after several failed sign in attempts. Every call to the public API responds with a 500 internal server error. Our integration broke right after the latest release was deployed. This started happening earlier this week.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0018",
+    "subject": "Single sign on login fails",
+    "body": "Single sign on redirects back to the login screen without signing me in. The password reset email never arrives in my inbox or my spam folder. I have already tried the usual steps from your help centre.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0039",
+    "subject": "Remove a deactivated user",
+    "body": "We need to transfer ownership of the workspace to a different person.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0016",
+    "subject": "Access permissions are missing",
+    "body": "We need to transfer ownership of the workspace to a different person.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0127",
+    "subject": "Mobile app crashes on launch",
+    "body": "The nightly synchronisation job failed with a connection timeout error. The CSV export times out before it finishes for large date ranges. Single sign on redirects back to the login screen without signing me in. I am happy to share more details if you need them.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0025",
+    "subject": "Need to add a teammate",
+    "body": "The email address registered on the account has a typo and needs updating. My account is locked after several failed sign in attempts. We were invoiced for ten seats but our account only uses six seats. Can you explain the proration amount added to this billing cycle?",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0021",
+    "subject": "Single sign on login fails",
+    "body": "My account is locked after several failed sign in attempts.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0078",
+    "subject": "Unexpected renewal charge",
+    "body": "Please send a corrected invoice with the tax details for our finance team. Thanks in advance for the help.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0146",
+    "subject": "Search returns no results",
+    "body": "Performance has degraded badly and the page freezes while loading data. The mobile application crashes immediately after the splash screen.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0087",
+    "subject": "Idea: saved filters on the list view",
+    "body": "An audit log showing who changed what would help our compliance review. Custom fields on the record page would let us model our own process. I am happy to share more details if you need them.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0104",
+    "subject": "Roadmap question about the mobile app",
+    "body": "Custom fields on the record page would let us model our own process. The password reset email never arrives in my inbox or my spam folder. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0108",
+    "subject": "Request: bulk edit support",
+    "body": "Support for additional languages in the interface would help our region. Please consider adding scheduled reports delivered by email every week. Performance has degraded badly and the page freezes while loading data.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0051",
+    "subject": "Refund request for last month",
+    "body": "The billing page shows a different price than the plan I subscribed to. The billing page shows a different price than the plan I subscribed to. Saved filters on the list view would save our team a lot of clicks. An audit log showing who changed what would help our compliance review. I am happy to share more details if you need them.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0094",
+    "subject": "Please consider multi language support",
+    "body": "It would be great if the product supported a dark theme for night work. Please consider adding scheduled reports delivered by email every week. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0122",
+    "subject": "Sync job crashed overnight",
+    "body": "The CSV export times out before it finishes for large date ranges. Performance has degraded badly and the page freezes while loading data. It would be great if the product supported a dark theme for night work.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0096",
+    "subject": "Feature idea: scheduled reports",
+    "body": "It would be great if the product supported a dark theme for night work. We would like a public endpoint so we can pull the data ourselves.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0063",
+    "subject": "Duplicate payment on order 4471",
+    "body": "The billing page shows a different price than the plan I subscribed to. The discount coupon was not applied to the final price at checkout.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0088",
+    "subject": "Suggestion for a Slack integration",
+    "body": "Saved filters on the list view would save our team a lot of clicks.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0043",
+    "subject": "Wrong amount on my credit card",
+    "body": "The payment failed in the checkout but the amount left my bank account. The billing page shows a different price than the plan I subscribed to. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0099",
+    "subject": "Would love an audit log",
+    "body": "An audit log showing who changed what would help our compliance review. Please consider adding scheduled reports delivered by email every week. I am happy to share more details if you need them.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0115",
+    "subject": "Suggestion for a Slack integration",
+    "body": "An audit log showing who changed what would help our compliance review. We would like a public endpoint so we can pull the data ourselves.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0151",
+    "subject": "Export keeps timing out",
+    "body": "Performance has degraded badly and the page freezes while loading data. Performance has degraded badly and the page freezes while loading data. I am happy to share more details if you need them.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0107",
+    "subject": "Please add dark mode",
+    "body": "Is a native mobile application on the roadmap for the next quarters? Could you add the ability to edit many records at once in bulk? I have already tried the usual steps from your help centre.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0023",
+    "subject": "Password reset email never arrives",
+    "body": "My account is locked after several failed sign in attempts. We need to transfer ownership of the workspace to a different person. This started happening earlier this week.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0054",
+    "subject": "Unexpected renewal charge",
+    "body": "I need a receipt for the annual payment for our accounting records.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0071",
+    "subject": "Invoice does not match my plan",
+    "body": "I need a receipt for the annual payment for our accounting records. The discount coupon was not applied to the final price at checkout. Could you add the ability to edit many records at once in bulk? Saved filters on the list view would save our team a lot of clicks. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0109",
+    "subject": "Can you support custom fields",
+    "body": "Please consider adding scheduled reports delivered by email every week. Support for additional languages in the interface would help our region.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0049",
+    "subject": "Charged twice on my invoice",
+    "body": "I would like a refund for the payment taken on the third of the month. Please add my colleague as a user with administrator permissions.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0057",
+    "subject": "Cancel subscription and refund",
+    "body": "Can you explain the proration amount added to this billing cycle? The renewal charge appeared even though I cancelled the subscription. Please add my colleague as a user with administrator permissions. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0068",
+    "subject": "Invoice does not match my plan",
+    "body": "We were invoiced for ten seats but our account only uses six seats. I need a receipt for the annual payment for our accounting records. Thanks in advance for the help.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0160",
+    "subject": "Export keeps timing out",
+    "body": "Performance has degraded badly and the page freezes while loading data. I have already tried the usual steps from your help centre.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0001",
+    "subject": "Change the account owner",
+    "body": "My account is locked after several failed sign in attempts. I cannot log in, the login page says my password is invalid. The nightly synchronisation job failed with a connection timeout error.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0064",
+    "subject": "Wrong amount on my credit card",
+    "body": "The discount coupon was not applied to the final price at checkout.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0128",
+    "subject": "Search returns no results",
+    "body": "The CSV export times out before it finishes for large date ranges. Performance has degraded badly and the page freezes while loading data. The password reset email never arrives in my inbox or my spam folder. I have already tried the usual steps from your help centre.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0019",
+    "subject": "Two factor authentication not working",
+    "body": "A former employee still has access and their user should be removed. We need to transfer ownership of the workspace to a different person. I am happy to share more details if you need them.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0066",
+    "subject": "Charged twice on my invoice",
+    "body": "My credit card was charged twice for the same monthly invoice. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0074",
+    "subject": "Question about proration on my bill",
+    "body": "The renewal charge appeared even though I cancelled the subscription. Thanks in advance for the help.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0124",
+    "subject": "Search returns no results",
+    "body": "The CSV export times out before it finishes for large date ranges. Please add my colleague as a user with administrator permissions. Single sign on redirects back to the login screen without signing me in.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0072",
+    "subject": "Charged twice on my invoice",
+    "body": "The renewal charge appeared even though I cancelled the subscription. The discount coupon was not applied to the final price at checkout. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0070",
+    "subject": "Cancel subscription and refund",
+    "body": "The renewal charge appeared even though I cancelled the subscription. We would like a public endpoint so we can pull the data ourselves. This started happening earlier this week.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0046",
+    "subject": "Charged twice on my invoice",
+    "body": "Please send a corrected invoice with the tax details for our finance team. Can you explain the proration amount added to this billing cycle? The two factor authentication code is rejected every time I enter it.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0150",
+    "subject": "Export keeps timing out",
+    "body": "Webhook deliveries stopped arriving at our endpoint since yesterday. The application throws an error whenever we upload a large file. My account is locked after several failed sign in attempts. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0145",
+    "subject": "Sync job crashed overnight",
+    "body": "Every call to the public API responds with a 500 internal server error. The CSV export times out before it finishes for large date ranges.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0075",
+    "subject": "Charged twice on my invoice",
+    "body": "The billing page shows a different price than the plan I subscribed to. I need a receipt for the annual payment for our accounting records. This started happening earlier this week.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0158",
+    "subject": "Charts fail to load",
+    "body": "The reporting dashboard takes over thirty seconds to load any chart. Response times are very slow and requests occasionally return a gateway error.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0091",
+    "subject": "Request for a public API endpoint",
+    "body": "We would like a public endpoint so we can pull the data ourselves. Could you add the ability to edit many records at once in bulk? A former employee still has access and their user should be removed. Please let me know as soon as possible.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0067",
+    "subject": "Refund request for last month",
+    "body": "The discount coupon was not applied to the final price at checkout. The application throws an error whenever we upload a large file. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0056",
+    "subject": "Cancel subscription and refund",
+    "body": "Please send a corrected invoice with the tax details for our finance team. I would like a refund for the payment taken on the third of the month. I am happy to share more details if you need them.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0073",
+    "subject": "Invoice does not match my plan",
+    "body": "We were invoiced for ten seats but our account only uses six seats. I would like a refund for the payment taken on the third of the month. The nightly synchronisation job failed with a connection timeout error. The CSV export times out before it finishes for large date ranges.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0053",
+    "subject": "Question about proration on my bill",
+    "body": "The discount coupon was not applied to the final price at checkout. Thanks in advance for the help.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0004",
+    "subject": "Single sign on login fails",
+    "body": "My account is locked after several failed sign in attempts.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0080",
+    "subject": "Question about proration on my bill",
+    "body": "The payment failed in the checkout but the amount left my bank account. The payment failed in the checkout but the amount left my bank account. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0061",
+    "subject": "Invoice does not match my plan",
+    "body": "I would like a refund for the payment taken on the third of the month.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0065",
+    "subject": "Duplicate payment on order 4471",
+    "body": "We were invoiced for ten seats but our account only uses six seats. My credit card was charged twice for the same monthly invoice. Is a native mobile application on the roadmap for the next quarters?",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0135",
+    "subject": "Mobile app crashes on launch",
+    "body": "The application throws an error whenever we upload a large file. The application throws an error whenever we upload a large file.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0048",
+    "subject": "VAT missing from the receipt",
+    "body": "The payment failed in the checkout but the amount left my bank account. My credit card was charged twice for the same monthly invoice. Please let me know as soon as possible.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0153",
+    "subject": "Dashboard is extremely slow",
+    "body": "Response times are very slow and requests occasionally return a gateway error. The CSV export times out before it finishes for large date ranges. I cannot log in, the login page says my password is invalid.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0125",
+    "subject": "Charts fail to load",
+    "body": "Our integration broke right after the latest release was deployed. Is a native mobile application on the roadmap for the next quarters? Is a native mobile application on the roadmap for the next quarters? Our team is blocked on this right now.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0033",
+    "subject": "Single sign on login fails",
+    "body": "The two factor authentication code is rejected every time I enter it. Please consider adding scheduled reports delivered by email every week.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0045",
+    "subject": "Unexpected renewal charge",
+    "body": "The payment failed in the checkout but the amount left my bank account. The payment failed in the checkout but the amount left my bank account. The reporting dashboard takes over thirty seconds to load any chart. The nightly synchronisation job failed with a connection timeout error.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0003",
+    "subject": "Access permissions are missing",
+    "body": "I cannot log in, the login page says my password is invalid. The discount coupon was not applied to the final price at checkout.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0034",
+    "subject": "Change the account owner",
+    "body": "Please add my colleague as a user with administrator permissions. This started happening earlier this week.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0144",
+    "subject": "Charts fail to load",
+    "body": "Response times are very slow and requests occasionally return a gateway error. Please send a corrected invoice with the tax details for our finance team. The payment failed in the checkout but the amount left my bank account.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0141",
+    "subject": "Charts fail to load",
+    "body": "The application throws an error whenever we upload a large file. Response times are very slow and requests occasionally return a gateway error. I am happy to share more details if you need them.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0041",
+    "subject": "Question about proration on my bill",
+    "body": "The renewal charge appeared even though I cancelled the subscription. Thanks in advance for the help.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0140",
+    "subject": "Webhook events are not delivered",
+    "body": "Every call to the public API responds with a 500 internal server error. Our team is blocked on this right now.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0116",
+    "subject": "Idea: saved filters on the list view",
+    "body": "Could you add the ability to edit many records at once in bulk? The payment failed in the checkout but the amount left my bank account. The renewal charge appeared even though I cancelled the subscription.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0083",
+    "subject": "Suggestion for a Slack integration",
+    "body": "We would really like an integration that posts notifications into Slack. Custom fields on the record page would let us model our own process. Please send a corrected invoice with the tax details for our finance team. We were invoiced for ten seats but our account only uses six seats. I am happy to share more details if you need them.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0093",
+    "subject": "Request: bulk edit support",
+    "body": "Could you add the ability to edit many records at once in bulk? Saved filters on the list view would save our team a lot of clicks. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0017",
+    "subject": "Cannot log in to my account",
+    "body": "A former employee still has access and their user should be removed.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0013",
+    "subject": "Need to add a teammate",
+    "body": "My account is locked after several failed sign in attempts. We would really like an integration that posts notifications into Slack. I am happy to share more details if you need them.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0155",
+    "subject": "Latency spike on the reports page",
+    "body": "The mobile application crashes immediately after the splash screen. Performance has degraded badly and the page freezes while loading data. We would like a public endpoint so we can pull the data ourselves.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0133",
+    "subject": "Dashboard is extremely slow",
+    "body": "The nightly synchronisation job failed with a connection timeout error. The mobile application crashes immediately after the splash screen.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0120",
+    "subject": "Please consider multi language support",
+    "body": "Support for additional languages in the interface would help our region. Could you add the ability to edit many records at once in bulk? My role no longer has permission to open the settings of our workspace. Please add my colleague as a user with administrator permissions.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0081",
+    "subject": "Roadmap question about the mobile app",
+    "body": "Saved filters on the list view would save our team a lot of clicks. This started happening earlier this week.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0143",
+    "subject": "Export keeps timing out",
+    "body": "Performance has degraded badly and the page freezes while loading data. Response times are very slow and requests occasionally return a gateway error. The discount coupon was not applied to the final price at checkout. The discount coupon was not applied to the final price at checkout.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0012",
+    "subject": "Need to add a teammate",
+    "body": "Single sign on redirects back to the login screen without signing me in. We would really like an integration that posts notifications into Slack. Support for additional languages in the interface would help our region. Please let me know as soon as possible.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0082",
+    "subject": "Request for a public API endpoint",
+    "body": "Support for additional languages in the interface would help our region. Please let me know as soon as possible.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0111",
+    "subject": "Request for a public API endpoint",
+    "body": "We would really like an integration that posts notifications into Slack. The CSV export times out before it finishes for large date ranges. The mobile application crashes immediately after the splash screen. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0103",
+    "subject": "Suggestion for a Slack integration",
+    "body": "Custom fields on the record page would let us model our own process. Saved filters on the list view would save our team a lot of clicks. This started happening earlier this week.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0005",
+    "subject": "Locked out after too many attempts",
+    "body": "The password reset email never arrives in my inbox or my spam folder. I am happy to share more details if you need them.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0015",
+    "subject": "Two factor authentication not working",
+    "body": "The two factor authentication code is rejected every time I enter it. My role no longer has permission to open the settings of our workspace. We would really like an integration that posts notifications into Slack. Our team is blocked on this right now.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0106",
+    "subject": "Can you support custom fields",
+    "body": "Saved filters on the list view would save our team a lot of clicks. My credit card was charged twice for the same monthly invoice. Please send a corrected invoice with the tax details for our finance team. This started happening earlier this week.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0027",
+    "subject": "Remove a deactivated user",
+    "body": "Please add my colleague as a user with administrator permissions. My role no longer has permission to open the settings of our workspace. This started happening earlier this week.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0032",
+    "subject": "Change the account owner",
+    "body": "My account is locked after several failed sign in attempts. The discount coupon was not applied to the final price at checkout.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0014",
+    "subject": "Locked out after too many attempts",
+    "body": "Single sign on redirects back to the login screen without signing me in. Is a native mobile application on the roadmap for the next quarters? An audit log showing who changed what would help our compliance review. I have already tried the usual steps from your help centre.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0159",
+    "subject": "Charts fail to load",
+    "body": "Performance has degraded badly and the page freezes while loading data. I am happy to share more details if you need them.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0092",
+    "subject": "Suggestion for a Slack integration",
+    "body": "An audit log showing who changed what would help our compliance review. The CSV export times out before it finishes for large date ranges. Performance has degraded badly and the page freezes while loading data.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0097",
+    "subject": "Feature idea: scheduled reports",
+    "body": "An audit log showing who changed what would help our compliance review. Please let me know as soon as possible.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0147",
+    "subject": "Dashboard is extremely slow",
+    "body": "The reporting dashboard takes over thirty seconds to load any chart. Performance has degraded badly and the page freezes while loading data. I am happy to share more details if you need them.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0123",
+    "subject": "Sync job crashed overnight",
+    "body": "The CSV export times out before it finishes for large date ranges. The email address registered on the account has a typo and needs updating. A former employee still has access and their user should be removed. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0086",
+    "subject": "Please consider multi language support",
+    "body": "An audit log showing who changed what would help our compliance review. Thanks in advance for the help.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0069",
+    "subject": "Cancel subscription and refund",
+    "body": "My credit card was charged twice for the same monthly invoice. I have already tried the usual steps from your help centre.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0117",
+    "subject": "Request for a public API endpoint",
+    "body": "An audit log showing who changed what would help our compliance review. An audit log showing who changed what would help our compliance review. The nightly synchronisation job failed with a connection timeout error. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0105",
+    "subject": "Request: bulk edit support",
+    "body": "Saved filters on the list view would save our team a lot of clicks. Please send a corrected invoice with the tax details for our finance team. I would like a refund for the payment taken on the third of the month. Thanks in advance for the help.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0026",
+    "subject": "Two factor authentication not working",
+    "body": "Single sign on redirects back to the login screen without signing me in. The nightly synchronisation job failed with a connection timeout error. The reporting dashboard takes over thirty seconds to load any chart.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0047",
+    "subject": "Refund request for last month",
+    "body": "The renewal charge appeared even though I cancelled the subscription. The billing page shows a different price than the plan I subscribed to. Please add my colleague as a user with administrator permissions. Single sign on redirects back to the login screen without signing me in. I am happy to share more details if you need them.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0156",
+    "subject": "Latency spike on the reports page",
+    "body": "Our integration broke right after the latest release was deployed.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0076",
+    "subject": "Unexpected renewal charge",
+    "body": "The payment failed in the checkout but the amount left my bank account. I would like a refund for the payment taken on the third of the month. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0110",
+    "subject": "Please add dark mode",
+    "body": "An audit log showing who changed what would help our compliance review. We would like a public endpoint so we can pull the data ourselves. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0126",
+    "subject": "Webhook events are not delivered",
+    "body": "Our integration broke right after the latest release was deployed. My account is locked after several failed sign in attempts. Single sign on redirects back to the login screen without signing me in. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0006",
+    "subject": "Password reset email never arrives",
+    "body": "My role no longer has permission to open the settings of our workspace. The two factor authentication code is rejected every time I enter it.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0095",
+    "subject": "Would love an audit log",
+    "body": "We would like a public endpoint so we can pull the data ourselves. Thanks in advance for the help.",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0139",
+    "subject": "Webhook events are not delivered",
+    "body": "The CSV export times out before it finishes for large date ranges.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0090",
+    "subject": "Please consider multi language support",
+    "body": "We would like a public endpoint so we can pull the data ourselves. Is a native mobile application on the roadmap for the next quarters?",
+    "category": "feature_request",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0130",
+    "subject": "API returns 500 errors",
+    "body": "The mobile application crashes immediately after the splash screen.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0036",
+    "subject": "Locked out after too many attempts",
+    "body": "The email address registered on the account has a typo and needs updating. The email address registered on the account has a typo and needs updating. Support for additional languages in the interface would help our region. I have already tried the usual steps from your help centre.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0011",
+    "subject": "Remove a deactivated user",
+    "body": "The password reset email never arrives in my inbox or my spam folder. Please add my colleague as a user with administrator permissions.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0132",
+    "subject": "Export keeps timing out",
+    "body": "Our integration broke right after the latest release was deployed. The CSV export times out before it finishes for large date ranges. It would be great if the product supported a dark theme for night work.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0008",
+    "subject": "Remove a deactivated user",
+    "body": "We need to transfer ownership of the workspace to a different person. The discount coupon was not applied to the final price at checkout. Our team is blocked on this right now.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0037",
+    "subject": "Locked out after too many attempts",
+    "body": "A former employee still has access and their user should be removed. The discount coupon was not applied to the final price at checkout. The discount coupon was not applied to the final price at checkout.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0089",
+    "subject": "Feature idea: scheduled reports",
+    "body": "An audit log showing who changed what would help our compliance review. We would like a public endpoint so we can pull the data ourselves. The billing page shows a different price than the plan I subscribed to. This started happening earlier this week.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0042",
+    "subject": "Unexpected renewal charge",
+    "body": "I would like a refund for the payment taken on the third of the month. The payment failed in the checkout but the amount left my bank account. The password reset email never arrives in my inbox or my spam folder. The two factor authentication code is rejected every time I enter it.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0028",
+    "subject": "Change the account owner",
+    "body": "The password reset email never arrives in my inbox or my spam folder. The two factor authentication code is rejected every time I enter it. Thanks in advance for the help.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0029",
+    "subject": "Access permissions are missing",
+    "body": "I cannot log in, the login page says my password is invalid. We need to transfer ownership of the workspace to a different person. This started happening earlier this week.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0148",
+    "subject": "Dashboard is extremely slow",
+    "body": "The CSV export times out before it finishes for large date ranges. The mobile application crashes immediately after the splash screen. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0009",
+    "subject": "Remove a deactivated user",
+    "body": "Single sign on redirects back to the login screen without signing me in. The password reset email never arrives in my inbox or my spam folder.",
+    "category": "account",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0038",
+    "subject": "Email address on the account is wrong",
+    "body": "I cannot log in, the login page says my password is invalid. Please add my colleague as a user with administrator permissions. The discount coupon was not applied to the final price at checkout. My credit card was charged twice for the same monthly invoice.",
+    "category": "account",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0044",
+    "subject": "VAT missing from the receipt",
+    "body": "The billing page shows a different price than the plan I subscribed to. Thanks in advance for the help.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0020",
+    "subject": "Email address on the account is wrong",
+    "body": "The password reset email never arrives in my inbox or my spam folder. I have already tried the usual steps from your help centre.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0101",
+    "subject": "Please consider multi language support",
+    "body": "We would really like an integration that posts notifications into Slack. Single sign on redirects back to the login screen without signing me in. Please let me know as soon as possible.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0055",
+    "subject": "Invoice does not match my plan",
+    "body": "We were invoiced for ten seats but our account only uses six seats. The billing page shows a different price than the plan I subscribed to. We would really like an integration that posts notifications into Slack. This started happening earlier this week.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0079",
+    "subject": "Charged twice on my invoice",
+    "body": "The renewal charge appeared even though I cancelled the subscription. The renewal charge appeared even though I cancelled the subscription. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0060",
+    "subject": "Refund request for last month",
+    "body": "The renewal charge appeared even though I cancelled the subscription. Our integration broke right after the latest release was deployed. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0112",
+    "subject": "Can you support custom fields",
+    "body": "Support for additional languages in the interface would help our region. An audit log showing who changed what would help our compliance review. Single sign on redirects back to the login screen without signing me in. Please let me know as soon as possible.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0007",
+    "subject": "Remove a deactivated user",
+    "body": "My role no longer has permission to open the settings of our workspace. We were invoiced for ten seats but our account only uses six seats. Our team is blocked on this right now.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0002",
+    "subject": "Two factor authentication not working",
+    "body": "I cannot log in, the login page says my password is invalid. Single sign on redirects back to the login screen without signing me in. My credit card was charged twice for the same monthly invoice. Can you explain the proration amount added to this billing cycle? I have already tried the usual steps from your help centre.",
+    "category": "account",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0136",
+    "subject": "Export keeps timing out",
+    "body": "The application throws an error whenever we upload a large file. Every call to the public API responds with a 500 internal server error. I would like a refund for the payment taken on the third of the month. I need a receipt for the annual payment for our accounting records.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0152",
+    "subject": "Mobile app crashes on launch",
+    "body": "The mobile application crashes immediately after the splash screen. Response times are very slow and requests occasionally return a gateway error. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0121",
+    "subject": "Dashboard is extremely slow",
+    "body": "Every call to the public API responds with a 500 internal server error. Please let me know as soon as possible.",
+    "category": "technical",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0138",
+    "subject": "Export keeps timing out",
+    "body": "The reporting dashboard takes over thirty seconds to load any chart.",
+    "category": "technical",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0098",
+    "subject": "Can you support custom fields",
+    "body": "Is a native mobile application on the roadmap for the next quarters? Is a native mobile application on the roadmap for the next quarters? We were invoiced for ten seats but our account only uses six seats. I have already tried the usual steps from your help centre.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0062",
+    "subject": "Duplicate payment on order 4471",
+    "body": "Please send a corrected invoice with the tax details for our finance team. Our team is blocked on this right now.",
+    "category": "billing",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0154",
+    "subject": "Webhook events are not delivered",
+    "body": "The CSV export times out before it finishes for large date ranges. Response times are very slow and requests occasionally return a gateway error.",
+    "category": "technical",
+    "customer_tier": "enterprise"
+  },
+  {
+    "id": "T-0085",
+    "subject": "Roadmap question about the mobile app",
+    "body": "We would really like an integration that posts notifications into Slack. The email address registered on the account has a typo and needs updating. The password reset email never arrives in my inbox or my spam folder. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  },
+  {
+    "id": "T-0100",
+    "subject": "Please consider multi language support",
+    "body": "We would really like an integration that posts notifications into Slack.",
+    "category": "feature_request",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0050",
+    "subject": "Charged twice on my invoice",
+    "body": "The payment failed in the checkout but the amount left my bank account. It would be great if the product supported a dark theme for night work.",
+    "category": "billing",
+    "customer_tier": "free"
+  },
+  {
+    "id": "T-0084",
+    "subject": "Roadmap question about the mobile app",
+    "body": "Could you add the ability to edit many records at once in bulk? We would really like an integration that posts notifications into Slack. Response times are very slow and requests occasionally return a gateway error. Webhook deliveries stopped arriving at our endpoint since yesterday. Our team is blocked on this right now.",
+    "category": "feature_request",
+    "customer_tier": "pro"
+  }
+]

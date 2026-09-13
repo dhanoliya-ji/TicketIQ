@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Test / coverage artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Runtime state produced by the service (SQLite workflow state + RL statistics)
+var/
+*.sqlite3
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

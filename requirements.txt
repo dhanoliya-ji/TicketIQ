@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# Runtime dependencies for the TicketIQ service.
+# Pinned with ">=" so a fresh machine gets a working, recent version.
+# ---------------------------------------------------------------------------
+
+# Web API layer
+fastapi>=0.110.0
+uvicorn>=0.27.0
+pydantic>=2.6.0
+
+# Numeric helpers used by the TF-IDF vectoriser and the vector store
+numpy>=1.26.0
+
+# Aspect level sentiment scoring (rule + lexicon based, no model download)
+vaderSentiment>=3.3.2
+
+# HTTP client used to talk to a local Ollama server (optional at runtime)
+requests>=2.31.0

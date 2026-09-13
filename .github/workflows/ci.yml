@@ -1,0 +1,94 @@
+name: CI
+
+# Run on every push and on every pull request into the default branch.
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    name: Lint and test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Run every version even if one of them fails, so one break does not
+      # hide another.
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Check formatting with black
+        run: black --check app tests scripts data
+
+      - name: Lint with ruff
+        run: ruff check app tests scripts data
+
+      - name: Run the test suite with coverage
+        # The template backend keeps CI offline: no model server is needed.
+        env:
+          TICKETIQ_LLM_BACKEND: template
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml
+
+      - name: Verify the dataset can be regenerated
+        run: |
+          python data/generate_tickets.py
+          git diff --exit-code data/tickets.json
+
+      - name: Check the classifier report still runs
+        run: python scripts/train_and_report.py
+
+      - name: Check the reinforcement learning simulation still runs
+        run: python scripts/simulate_bandit.py 500
+
+      - name: Upload the coverage report
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  docker:
+    name: Build the Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t ticketiq:ci .
+
+      - name: Start the container and check its health endpoint
+        run: |
+          docker run -d --name ticketiq-ci -p 8000:8000 \
+            -e TICKETIQ_LLM_BACKEND=template ticketiq:ci
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://localhost:8000/health; then
+              echo "service is healthy"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "service did not become healthy in time"
+          docker logs ticketiq-ci
+          exit 1
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f ticketiq-ci || true

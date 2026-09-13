@@ -1,0 +1,9 @@
+# Normalise line endings: LF in the repository, native in the working copy.
+# This keeps the CI check that regenerates data/tickets.json byte-identical
+# from failing on a Windows checkout.
+* text=auto eol=lf
+
+# Never touch binary-ish files.
+*.png binary
+*.jpg binary
+*.sqlite3 binary
