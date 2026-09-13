@@ -38,6 +38,13 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Put the repository root on sys.path so `import app` works.
+#
+# `python -m pytest` adds the current directory automatically, but the bare
+# `pytest` command does not - it only adds the test folder. Without this line
+# the suite passes when run one way and fails with "No module named 'app'"
+# when run the other, which is exactly what happened the first time CI ran.
+pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["app"]
