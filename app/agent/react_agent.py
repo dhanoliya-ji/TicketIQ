@@ -33,7 +33,7 @@ from app.agent.tools import (
     ToolResult,
     run_tool,
 )
-from app.llm.client import TASK_DECIDE, TASK_WRITE, LlmClient, LlmRequest
+from app.llm.client import TASK_DECIDE, TASK_WRITE, LlmClient, LlmRequest, LlmResponse
 from app.llm.configs import PipelineConfig
 from app.settings import SETTINGS
 
@@ -74,8 +74,29 @@ class AgentResult:
         self.trace: list[AgentStep] = []
         self.tool_results: list[ToolResult] = []
         self.llm_calls: int = 0
-        self.llm_backend: str = ""
         self.llm_model: str = ""
+        # Which backend served each generation, in order. A single ticket can
+        # legitimately use both: if a model call times out the client falls
+        # back to the template writer for that request only.
+        self.backends_used: list[str] = []
+
+    @property
+    def llm_backend(self) -> str:
+        """The backend that served this ticket.
+
+        Reporting only the last call would have been misleading: a ticket whose
+        decision fell back to the template but whose reply was written by the
+        model used to report "template", which undersold what actually
+        happened. When the calls disagree, both names are reported.
+        """
+        distinct: list[str] = []
+        for backend in self.backends_used:
+            if backend not in distinct:
+                distinct.append(backend)
+
+        if len(distinct) == 0:
+            return ""
+        return "+".join(distinct)
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -207,6 +228,9 @@ class TriageAgent:
 
         tools_already_used: list[str] = []
         observations: list[str] = []
+        # tool + arguments -> the summary it returned, so an identical repeat
+        # can be answered from memory instead of run again.
+        completed_calls: dict[str, str] = {}
         decision = ANSWER
 
         for step_number in range(1, self.max_steps + 1):
@@ -238,7 +262,7 @@ class TriageAgent:
 
             response = self.llm.generate(request, config.model_name)
             result.llm_calls = result.llm_calls + 1
-            result.llm_backend = response.backend
+            result.backends_used.append(response.backend)
 
             parsed = parse_first_json_object(response.text)
             if parsed is None:
@@ -282,9 +306,28 @@ class TriageAgent:
                 if action == "check_account_status" and "customer_id" not in action_input:
                     action_input["customer_id"] = identifiers["customer_id"]
 
+                # Smaller models sometimes ask for a call they have already
+                # made. Re-running it would burn a step, and for a tool with
+                # real side effects it would be worse than wasteful, so the
+                # earlier answer is replayed instead.
+                call_signature = action + " " + json.dumps(action_input, sort_keys=True)
+
+                if call_signature in completed_calls:
+                    previous_summary = completed_calls[call_signature]
+                    step.observation = previous_summary + " (already checked at an earlier step)"
+
+                    logger.info(
+                        "step %s | tool=%s | repeated call, replaying the earlier result",
+                        step_number,
+                        action,
+                    )
+                    observations.append(action + " -> " + previous_summary)
+                    continue
+
                 tool_result = run_tool(action, action_input)
                 result.tool_results.append(tool_result)
                 step.observation = tool_result.summary
+                completed_calls[call_signature] = tool_result.summary
 
                 logger.info(
                     "step %s | tool=%s | arguments=%s | observation=%s",
@@ -323,9 +366,12 @@ class TriageAgent:
         )
 
         result.decision = decision
-        result.response_text = self._write_reply(
+
+        written = self._write_reply(
             subject, body, customer_tier, category, decision, snippets, result.tool_results, config
         )
+        result.response_text = written.text
+        result.backends_used.append(written.backend)
         result.llm_calls = result.llm_calls + 1
         return result
 
@@ -379,8 +425,12 @@ class TriageAgent:
         snippets: list[dict],
         tool_results: list[ToolResult],
         config: PipelineConfig,
-    ) -> str:
-        """Second model call: turn the decision into the customer facing text."""
+    ) -> LlmResponse:
+        """Second model call: turn the decision into the customer facing text.
+
+        Returns the whole response, not just the text, so the caller can record
+        which backend actually wrote the reply.
+        """
         tool_summaries = []
         for tool_result in tool_results:
             tool_summaries.append({"tool": tool_result.tool, "summary": tool_result.summary})
@@ -420,7 +470,7 @@ class TriageAgent:
             facts=facts,
         )
         response = self.llm.generate(request, config.model_name)
-        return response.text
+        return response
 
     def _format_tool_results(self, tool_results: list[ToolResult]) -> str:
         if len(tool_results) == 0:

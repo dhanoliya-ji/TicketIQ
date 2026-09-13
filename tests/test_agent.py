@@ -173,6 +173,53 @@ def test_a_missing_identifier_is_filled_in_from_the_ticket(fake_llm_factory):
     assert result.tool_results[0].arguments["order_id"] == "4471"
 
 
+def test_an_identical_repeated_tool_call_is_not_executed_twice(fake_llm_factory):
+    """Small models sometimes ask for a call they have already made.
+
+    Re-running it burns a step, and for a tool with real side effects it would
+    be worse than wasteful, so the earlier result is replayed instead. Observed
+    with llama3.2:1b, which asked for check_refund_eligibility twice in a row.
+    """
+    same_call = (
+        '{"thought": "check", "action": "check_refund_eligibility",'
+        ' "action_input": {"order_id": "4471"}}'
+    )
+    fake = fake_llm_factory(
+        [
+            same_call,
+            same_call,
+            '{"thought": "done", "action": "answer", "action_input": {}}',
+        ]
+    )
+    result = run_agent(fake)
+
+    # Three reasoning steps, but the tool only actually ran once.
+    assert len(result.trace) == 3
+    assert len(result.tool_results) == 1
+
+    # The repeat still gets an observation, marked as a replay.
+    assert "already checked" in result.trace[1].observation
+    assert result.trace[0].observation in result.trace[1].observation
+
+
+def test_a_repeated_tool_call_with_different_arguments_does_run(fake_llm_factory):
+    """Only identical repeats are suppressed - a different id is a real query."""
+    fake = fake_llm_factory(
+        [
+            '{"thought": "first", "action": "check_refund_eligibility",'
+            ' "action_input": {"order_id": "1111"}}',
+            '{"thought": "second", "action": "check_refund_eligibility",'
+            ' "action_input": {"order_id": "2222"}}',
+            '{"thought": "done", "action": "answer", "action_input": {}}',
+        ]
+    )
+    result = run_agent(fake)
+
+    assert len(result.tool_results) == 2
+    assert result.tool_results[0].arguments["order_id"] == "1111"
+    assert result.tool_results[1].arguments["order_id"] == "2222"
+
+
 def test_escalation_is_a_terminal_decision(fake_llm_factory):
     fake = fake_llm_factory(
         ['{"thought": "too hard", "action": "escalate_to_human", "action_input": {}}']
@@ -207,14 +254,19 @@ def test_a_non_dictionary_action_input_is_ignored(fake_llm_factory):
 
 
 def test_the_step_limit_stops_a_looping_model(fake_llm_factory):
-    # A model that only ever wants to call tools would spin forever.
-    tool_call = (
-        '{"thought": "again", "action": "check_account_status",'
-        ' "action_input": {"customer_id": "1"}}'
-    )
-    fake = fake_llm_factory([tool_call] * 20)
-    agent = TriageAgent(fake)
+    """A model that only ever wants to call tools must not spin forever.
 
+    Each distinct call is a fresh customer id, so the duplicate-call guard does
+    not mask the loop - the step limit is what stops it.
+    """
+    replies = []
+    for index in range(20):
+        replies.append(
+            '{"thought": "again", "action": "check_account_status",'
+            ' "action_input": {"customer_id": "' + str(index) + '"}}'
+        )
+
+    agent = TriageAgent(fake_llm_factory(replies))
     result = agent.run(
         subject="Cannot log in",
         body="Nothing works",
@@ -227,6 +279,31 @@ def test_the_step_limit_stops_a_looping_model(fake_llm_factory):
 
     assert result.decision == "escalate_to_human"
     assert len(result.tool_results) == agent.max_steps
+
+
+def test_a_model_repeating_one_call_forever_also_stops(fake_llm_factory):
+    """The same loop, but every call identical: the guard stops re-running the
+    tool, and the step limit still ends the loop."""
+    tool_call = (
+        '{"thought": "again", "action": "check_account_status",'
+        ' "action_input": {"customer_id": "1"}}'
+    )
+    agent = TriageAgent(fake_llm_factory([tool_call] * 20))
+
+    result = agent.run(
+        subject="Cannot log in",
+        body="Nothing works",
+        customer_tier="free",
+        category="account",
+        urgency_bucket="low",
+        snippets=SNIPPETS,
+        config=CONFIG,
+    )
+
+    assert result.decision == "escalate_to_human"
+    # The loop still ran to its limit, but the tool executed exactly once.
+    assert len(result.trace) == agent.max_steps + 1
+    assert len(result.tool_results) == 1
 
 
 def test_the_result_dictionary_carries_the_audit_trail(fake_llm_factory):

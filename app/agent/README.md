@@ -43,6 +43,7 @@ variant the bandit chose — turns the decision into the reply text.
 | `action_input` is not an object | treat as empty | the tool fills in its own defaults |
 | Tool called without an identifier | fill it in from the ticket text | models routinely forget to pass arguments through |
 | Model only ever calls tools | hard stop at `agent_max_steps` (default 4), then escalate | a confused model can never spin forever |
+| Model repeats a call it already made | replay the earlier result instead of re-running the tool | observed with `llama3.2:1b`; re-running burns a step and, for a tool with real side effects, would be worse than wasteful |
 
 ## The audit trail
 
@@ -80,6 +81,6 @@ extract_identifiers("Duplicate payment on order 4471", "My account 9912 was char
 
 ## Tests
 
-`tests/test_agent.py` (24 tests) drives the loop with a fake model, so each test
+`tests/test_agent.py` (27 tests) drives the loop with a fake model, so each test
 can force a specific decision sequence. It covers every row of the failure table
 above, plus the tools and the JSON extraction from prose.

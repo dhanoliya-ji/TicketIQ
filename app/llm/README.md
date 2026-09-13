@@ -13,8 +13,8 @@ A configuration is a **prompt variant** crossed with a **RAG top-K**:
 
 | Variant | System instruction | Ollama model |
 |---------|--------------------|--------------|
-| `concise_policy` | at most four sentences, quote the exact policy rule, no pleasantries | `TICKETIQ_OLLAMA_MODEL_A` (default `llama3`) |
-| `empathetic_stepwise` | acknowledge the impact, numbered next steps, say who owns it | `TICKETIQ_OLLAMA_MODEL_B` (default `mistral`) |
+| `concise_policy` | at most four sentences, quote the exact policy rule, no pleasantries | `TICKETIQ_OLLAMA_MODEL_A` (default `llama3.2:1b`) |
+| `empathetic_stepwise` | acknowledge the impact, numbered next steps, say who owns it | `TICKETIQ_OLLAMA_MODEL_B` (default `qwen2.5:1.5b`) |
 
 ```
 concise_policy|k2      concise_policy|k5
@@ -53,10 +53,15 @@ variant and the tool results, and writes a different answer for each — includi
 two visibly different reply shapes for the two variants. So the pipeline, the
 latency measurement and therefore the reward signal stay meaningful offline.
 
-**Every response reports its backend**, so template output can never be mistaken
-for model output. If Ollama was reachable at startup but the call fails (server
-stopped, model not pulled, timeout), that single request falls back to the
-template rather than failing the ticket, and says so.
+**Every response reports its backend**, and it names *every* backend that served
+the ticket rather than just the last one. If Ollama was reachable at startup but
+one call fails (timeout, model not pulled), that request alone falls back to the
+template rather than failing the ticket, and the response says `ollama+template`
+instead of quietly claiming one or the other.
+
+This mattered in practice: an earlier version reported only the last decision's
+backend, so a ticket whose reply was genuinely written by the model but whose
+decision had timed out reported `template` — underselling what had happened.
 
 ## The two tasks
 

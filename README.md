@@ -15,7 +15,7 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 217 passing, **99%** coverage of `app/` |
+| **Tests** | 220 passing, **98%** coverage of `app/` |
 | **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
@@ -52,7 +52,7 @@ rather than one monolithic function.
 | 2 | Urgency from category + sentiment + tier | [urgency.py](app/ml/urgency.py) | ✅ |
 | 3 | 4–6 markdown knowledge base documents | [data/knowledge_base/](data/knowledge_base/) — 5 documents, 28 chunks | ✅ |
 | 3 | Vector store, chunk + embed + top-K | [vector_store.py](app/rag/vector_store.py) — **FAISS** `IndexFlatIP` over TF-IDF vectors | ✅ |
-| 3 | Two distinct LLM configurations | [configs.py](app/llm/configs.py) — two prompt variants, each on its own Ollama model | ⚠️ code path tested with mocks; never run against a live Ollama — see [scope notes](#shortcuts-and-scope-notes) |
+| 3 | Two distinct LLM configurations | [configs.py](app/llm/configs.py) — two prompt variants, each on its own Ollama model | ✅ verified end to end against a live Ollama (`llama3.2:1b` + `qwen2.5:1.5b`) |
 | 4 | ReAct loop choosing answer / tool / escalate | [react_agent.py](app/agent/react_agent.py) | ✅ |
 | 4 | Mock `check_account_status` and `check_refund_eligibility` | [tools.py](app/agent/tools.py) | ✅ |
 | 4 | Decision, tool calls and trace in the response **and in logs** | returned by `POST /ticket`; logged by the `ticketiq.agent` logger | ✅ |
@@ -67,7 +67,7 @@ rather than one monolithic function.
 | 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
 | 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment`, proved with a `threading.Barrier` | ✅ |
 | 7 | Type hints, black, ruff, pre-commit | mypy runs clean over `app/`; all four wired into `.pre-commit-config.yaml` | ✅ |
-| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 217 tests, 99% coverage | ✅ |
+| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 220 tests, 98% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
 
@@ -425,30 +425,57 @@ completed, since there is then nothing to retry.
 ## Language model setup
 
 The RL layer needs a genuine choice between configurations, so there are two
-distinct prompt variants, each mapped to its own Ollama model:
+distinct prompt variants, **each mapped to its own model**:
 
-| Variant | System instruction | Ollama model |
-|---------|--------------------|--------------|
-| `concise_policy` | at most four sentences, quote the exact policy rule, no pleasantries | `llama3` |
-| `empathetic_stepwise` | acknowledge impact, numbered next steps, say who owns it | `mistral` |
+| Variant | System instruction | Model |
+|---------|--------------------|-------|
+| `concise_policy` | at most four sentences, quote the exact policy rule, no pleasantries | `llama3.2:1b` |
+| `empathetic_stepwise` | acknowledge impact, numbered next steps, say who owns it | `qwen2.5:1.5b` |
 
 Combined with RAG top-K of 2 or 5, that is the bandit's four-arm action space.
 
-**To use real models:**
+### Running against real models
 
 ```bash
-ollama serve
-ollama pull llama3
-ollama pull mistral
-TICKETIQ_LLM_BACKEND=auto uvicorn app.main:app
+ollama serve                    # in its own terminal
+ollama pull llama3.2:1b         # 1.3 GB
+ollama pull qwen2.5:1.5b        # 1.0 GB
+uvicorn app.main:app            # TICKETIQ_LLM_BACKEND defaults to "auto"
 ```
 
-**Without Ollama** the service uses `TemplateBackend`, which composes the reply
-from the retrieved policy chunks, the chosen prompt variant and the tool
-results. It is not a fixed-string stub — the two variants produce visibly
-different replies, so the pipeline, the latency measurement and therefore the
-reward signal stay meaningful. Every response carries `"llm_backend"`, so
-template output can never be mistaken for model output.
+`GET /health` will then report `"llm_backend": "ollama"` instead of
+`"template"`.
+
+These two defaults are deliberately small — 2.3 GB together, so the setup above
+takes minutes — and both are from families the brief names. Point them at
+anything Ollama serves without touching the code:
+
+```bash
+TICKETIQ_OLLAMA_MODEL_A=llama3 TICKETIQ_OLLAMA_MODEL_B=mistral uvicorn app.main:app
+```
+
+**What to expect at this size.** Warm calls take 2–4 s each, so a ticket
+completes in roughly 6–12 s against the template writer's 0.1 s. The *first*
+ticket after a restart is far slower (60–130 s) because Ollama is also loading
+the weights — which is why `TICKETIQ_LLM_TIMEOUT` defaults to 120 s. A 1 B
+model also reasons visibly less well than a 7 B one: it will occasionally ask
+for a tool call it has already made (the agent detects this and replays the
+earlier result instead of re-running the tool) and its prose sometimes
+describes an escalation when it chose to answer. Both improve markedly with
+`llama3`/`mistral`.
+
+### Without Ollama
+
+The service uses `TemplateBackend`, which composes the reply from the retrieved
+policy chunks, the chosen prompt variant and the tool results. It is not a
+fixed-string stub — the two variants produce visibly different replies, so the
+pipeline, the latency measurement and therefore the reward signal stay
+meaningful.
+
+**Every response carries `llm_backend`**, and it names *every* backend that
+served the ticket, not just the last one: a ticket whose decision timed out but
+whose reply came from the model reports `"ollama+template"`. Template output can
+never be mistaken for model output.
 
 This is what lets the test suite and CI run offline and deterministically.
 
@@ -611,7 +638,7 @@ merely asserted to be right.
 ## Testing
 
 ```bash
-pytest                                              # 217 tests
+pytest                                              # 220 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -626,12 +653,12 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 43 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
-| `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, step limit | 24 |
+| `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, repeated tool calls, step limit | 27 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
 | `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console routes | 31 |
 | `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection | 18 |
 
-**Coverage: 99% of `app/`** — 100% on the bandit, the DAG engine, the
+**Coverage: 98% of `app/`** — 100% on the bandit, the DAG engine, the
 classifier, TF-IDF, chunking and the vector store.
 
 The suite deliberately covers failure paths, not just happy paths: unparseable
@@ -678,7 +705,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 217 tests, 99% coverage
+├── tests/                      # 220 tests, 98% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml
@@ -699,9 +726,9 @@ All settings are environment variables with working defaults
 |----------|---------|---------|
 | `TICKETIQ_LLM_BACKEND` | `auto` | `auto`, `ollama` or `template` |
 | `TICKETIQ_OLLAMA_URL` | `http://localhost:11434` | Ollama server |
-| `TICKETIQ_OLLAMA_MODEL_A` | `llama3` | model for the concise variant |
-| `TICKETIQ_OLLAMA_MODEL_B` | `mistral` | model for the step-by-step variant |
-| `TICKETIQ_LLM_TIMEOUT` | `30.0` | seconds before falling back |
+| `TICKETIQ_OLLAMA_MODEL_A` | `llama3.2:1b` | model for the concise variant |
+| `TICKETIQ_OLLAMA_MODEL_B` | `qwen2.5:1.5b` | model for the step-by-step variant |
+| `TICKETIQ_LLM_TIMEOUT` | `120.0` | seconds before falling back (a cold model load is slow) |
 | `TICKETIQ_BANDIT_EPSILON` | `0.15` | exploration rate |
 | `TICKETIQ_AGENT_MAX_STEPS` | `4` | hard stop for the ReAct loop |
 | `TICKETIQ_TEST_SPLIT` | `0.25` | held-out fraction for the classifier report |
@@ -724,7 +751,10 @@ multi-language tickets and much longer bodies would all hurt.
 **The template LLM backend is a fallback, not a model.** When Ollama is absent
 the replies are composed from retrieved policy rather than generated. It exists
 so the system is reviewable and testable anywhere; it is labelled in every
-response and never silently substituted.
+response and never silently substituted. The Ollama path *has* been run end to
+end against live models — see [Language model setup](#language-model-setup) —
+but CI and the test suite deliberately use the template backend so they stay
+offline and deterministic.
 
 **Aspect sentiment is lexicon-based, and inherits VADER's blind spots.** The
 brief allows this ("rule/keyword-based aspect spotting combined with … VADER").

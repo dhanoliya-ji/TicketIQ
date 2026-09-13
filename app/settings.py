@@ -74,9 +74,19 @@ class Settings:
         self.llm_backend: str = _env_str("TICKETIQ_LLM_BACKEND", "auto").lower()
         self.ollama_base_url: str = _env_str("TICKETIQ_OLLAMA_URL", "http://localhost:11434")
         # The two models the RL layer can choose between when Ollama is used.
-        self.ollama_model_a: str = _env_str("TICKETIQ_OLLAMA_MODEL_A", "llama3")
-        self.ollama_model_b: str = _env_str("TICKETIQ_OLLAMA_MODEL_B", "mistral")
-        self.llm_timeout_seconds: float = _env_float("TICKETIQ_LLM_TIMEOUT", 30.0)
+        #
+        # These defaults are small on purpose: together they are about 2.3 GB,
+        # so following the README takes minutes rather than an hour, and both
+        # are from families the brief names (Llama 3 and Qwen). Point them at
+        # anything Ollama serves - "llama3", "mistral", "qwen2.5:7b" - with the
+        # environment variables; nothing else in the code needs to change.
+        self.ollama_model_a: str = _env_str("TICKETIQ_OLLAMA_MODEL_A", "llama3.2:1b")
+        self.ollama_model_b: str = _env_str("TICKETIQ_OLLAMA_MODEL_B", "qwen2.5:1.5b")
+        # Generous, because a local model's *first* request also pays for
+        # loading several gigabytes of weights into memory. 30 seconds was not
+        # enough for that and produced a spurious fall back to the template
+        # writer on the first ticket after every restart; warm calls take 2-3s.
+        self.llm_timeout_seconds: float = _env_float("TICKETIQ_LLM_TIMEOUT", 120.0)
 
         # ---------------- Agent ----------------
         # Safety stop for the ReAct loop, so it can never spin forever.
