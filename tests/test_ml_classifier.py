@@ -9,6 +9,8 @@ import math
 
 import pytest
 
+from app.ml.classifier_service import TicketClassifierService
+from app.ml.dataset import CATEGORIES, load_tickets, stratified_split
 from app.ml.metrics import (
     accuracy,
     classification_report,
@@ -18,8 +20,11 @@ from app.ml.metrics import (
     recall,
 )
 from app.ml.naive_bayes import NaiveBayesTextClassifier
+from app.ml.sklearn_metrics import classification_report as sklearn_classification_report
+from app.ml.sklearn_metrics import confusion as sklearn_confusion
 from app.ml.text_utils import count_tokens, join_ticket_text, tokenize
 from app.ml.tfidf import TfidfVectorizer, cosine_similarity, normalize
+from app.settings import SETTINGS
 
 # ---------------------------------------------------------------------------
 # Tokenisation
@@ -256,6 +261,69 @@ def test_confusion_matrix_places_mistakes_correctly():
     assert matrix["billing"]["account"] == 1
     assert matrix["technical"]["billing"] == 1
     assert matrix["account"]["account"] == 2
+
+
+def test_hand_written_metrics_match_sklearn():
+    """The from-scratch metrics are checked against a reference implementation.
+
+    ``metrics.py`` implements accuracy, precision, recall and F1 from their
+    definitions; ``sklearn_metrics.py`` is what the service actually publishes.
+    Keeping both is only worthwhile if they agree, so this pins that down on a
+    deliberately awkward case: one category is never predicted at all, which is
+    where a zero-division mistake would show up.
+    """
+    categories = ["account", "billing", "technical", "feature_request"]
+    actual = ["billing", "billing", "account", "account", "technical", "feature_request"]
+    predicted = ["billing", "account", "account", "account", "billing", "technical"]
+
+    mine = classification_report(actual, predicted, categories)
+    reference = sklearn_classification_report(actual, predicted, categories)
+
+    assert mine["accuracy"] == pytest.approx(reference["accuracy"])
+    assert mine["macro_precision"] == pytest.approx(reference["macro_precision"])
+    assert mine["macro_recall"] == pytest.approx(reference["macro_recall"])
+    assert mine["macro_f1"] == pytest.approx(reference["macro_f1"])
+    assert mine["sample_count"] == reference["sample_count"]
+
+    for category in categories:
+        for measure in ["precision", "recall", "f1", "support"]:
+            assert mine["per_category"][category][measure] == pytest.approx(
+                reference["per_category"][category][measure]
+            ), (category + "." + measure)
+
+
+def test_hand_written_confusion_matrix_matches_sklearn():
+    categories = ["account", "billing", "technical"]
+    actual = ["billing", "billing", "account", "account", "technical"]
+    predicted = ["billing", "account", "account", "account", "billing"]
+
+    assert confusion_matrix(actual, predicted, categories) == sklearn_confusion(
+        actual, predicted, categories
+    )
+
+
+def test_the_two_implementations_agree_on_the_real_dataset():
+    """Not just a toy case: the same agreement on the actual held-out split."""
+    service = TicketClassifierService(
+        dataset_path=SETTINGS.tickets_file,
+        test_fraction=SETTINGS.test_split,
+        seed=SETTINGS.random_seed,
+    ).train()
+
+    tickets = load_tickets(SETTINGS.tickets_file)
+    _, test_tickets = stratified_split(tickets, SETTINGS.test_split, SETTINGS.random_seed)
+
+    # Re-score the same split with the hand-written implementation. The model
+    # has since been retrained on everything, so predictions are recomputed.
+    texts = [ticket.as_text() for ticket in test_tickets]
+    actual = [ticket.category for ticket in test_tickets]
+    predicted = service.model.predict_many(texts)
+
+    mine = classification_report(actual, predicted, CATEGORIES)
+    reference = sklearn_classification_report(actual, predicted, CATEGORIES)
+
+    assert mine["accuracy"] == pytest.approx(reference["accuracy"])
+    assert mine["macro_f1"] == pytest.approx(reference["macro_f1"])
 
 
 def test_metrics_reject_mismatched_lengths():

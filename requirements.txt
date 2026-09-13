@@ -13,6 +13,11 @@ pydantic>=2.6.0
 faiss-cpu>=1.8.0
 numpy>=1.26.0
 
+# scikit-learn, used only where requirement 2 permits it: TF-IDF vectorisation,
+# the stratified train/test split, and scoring the classifier's predictions.
+# The classifier's own maths is hand-written - model.fit() is never called.
+scikit-learn>=1.4.0
+
 # Aspect level sentiment scoring (rule + lexicon based, no model download)
 vaderSentiment>=3.3.2
 

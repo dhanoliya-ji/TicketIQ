@@ -140,10 +140,16 @@ lock, because stages run on multiple threads.
 ## 4. Classical ML: the classifier
 
 `app/ml/naive_bayes.py` implements Multinomial Naive Bayes directly — the
-counting, the Laplace smoothing and the log-probability scoring. No
-`model.fit()` from scikit-learn is called anywhere; in fact scikit-learn is not
-a dependency at all, because the TF-IDF vectoriser (`tfidf.py`) and the metrics
-(`metrics.py`) are also written out by hand.
+counting, the Laplace smoothing and the log-probability scoring. **No
+`model.fit()` is called anywhere.**
+
+scikit-learn is used strictly where the brief permits it — "the surrounding
+vectorization and evaluation utilities": the stratified split
+(`train_test_split`), the TF-IDF vectorisation of the knowledge base, and
+scoring the classifier's predictions (`sklearn.metrics`). It never sees a
+model. The from-scratch `tfidf.py` and `metrics.py` are kept alongside and
+tested for agreement with scikit-learn, which turns them into verified
+implementations rather than asserted ones.
 
 **The maths, in one place:**
 
@@ -414,6 +420,6 @@ POST /feedback
 | SQLite state | in-memory dictionary | Feedback arrives late, status must be real, retries must be cheap. |
 | Contextual bandit | Q-learning / deep RL | One-step decision, immediate reward, few samples available. |
 | FAISS `IndexFlatIP` | ChromaDB | ChromaDB's default embedder downloads a model on first use, which would break the offline guarantee CI and the Docker image rely on. |
-| No scikit-learn | sklearn for vectorising/metrics | Allowed but not needed once TF-IDF and the metrics are hand-written; one fewer dependency. |
+| scikit-learn for the split, vectorisation and scoring; the model hand-written | sklearn end to end | The brief forbids `model.fit()` for the classifier and allows sklearn for the surrounding utilities, which is exactly the line drawn here. |
 | Template LLM fallback | fail without Ollama | Tests, CI and review must work on a machine with no model server. |
 | Threads, not async, inside the engine | asyncio | The parallel stages are CPU-light Python calls; threads keep the stage functions plain synchronous code. |

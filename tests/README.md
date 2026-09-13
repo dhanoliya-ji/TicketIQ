@@ -1,6 +1,6 @@
 # `tests/` — the test suite
 
-**213 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
+**217 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
 no model server, no network, no clock dependence.
 
 ```bash
@@ -16,8 +16,8 @@ pytest -k "bandit and converge"               # one test by name
 | File | Covers | Tests |
 |------|--------|-------|
 | `conftest.py` | Shared fixtures and the fake language model | — |
-| `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, category-aware re-ranking | 42 |
+| `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions checked against scikit-learn | 33 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 43 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, state store, schema self-healing | 26 |
 | `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, the step limit | 24 |
@@ -63,6 +63,11 @@ would deadlock and time out; only genuine concurrency passes.
 number": the IDF formula, unit-length vectors, the Laplace smoothing
 denominator, the harmonic mean in F1, and the bandit's incremental average
 against a plain average.
+
+**And against a reference implementation.** The hand-written TF-IDF and metrics
+are asserted to agree with scikit-learn — the weights to floating-point epsilon
+across the real knowledge base, the metrics exactly, including a category that
+is never predicted. That is what makes keeping both worthwhile.
 
 **Failure paths are covered as carefully as happy paths:**
 

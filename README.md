@@ -15,11 +15,11 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 213 passing, **99%** coverage of `app/` |
-| **Classifier** | 92.5% accuracy / 0.925 macro-F1 on a held-out split |
+| **Tests** | 217 passing, **99%** coverage of `app/` |
+| **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
-| **Stack** | FastAPI · Pydantic · FAISS · numpy · VADER · SQLite · pytest · black · ruff · mypy · Docker · GitHub Actions |
+| **Stack** | FastAPI · Pydantic · FAISS · scikit-learn · numpy · VADER · SQLite · pytest · black · ruff · mypy · Docker · GitHub Actions |
 
 ---
 
@@ -46,8 +46,8 @@ rather than one monolithic function.
 | 1 | `POST /ticket` returning category, aspect sentiment, snippets, action, response text, config, latency, transaction id | [app/main.py](app/main.py), [app/schemas.py](app/schemas.py) | ✅ |
 | 1 | `POST /feedback` updating the RL loop | [app/main.py](app/main.py) → [pipeline.handle_feedback](app/workflow/pipeline.py) | ✅ |
 | 1 | `GET /ticket/{id}/status` from real workflow state | reads the same SQLite rows the engine writes | ✅ |
-| 2 | Classifier with the maths written by hand, 4 categories | [naive_bayes.py](app/ml/naive_bayes.py), [tfidf.py](app/ml/tfidf.py) — no `model.fit()`, scikit-learn is not a dependency | ✅ |
-| 2 | 100–200 labelled tickets, accuracy / precision / recall / F1 on a held-out split | [data/tickets.json](data/tickets.json) (160), [metrics.py](app/ml/metrics.py), `scripts/train_and_report.py` | ✅ 92.5% / 0.925 F1 |
+| 2 | Classifier with the maths written by hand, 4 categories | [naive_bayes.py](app/ml/naive_bayes.py) — counting, Laplace smoothing and log-probability scoring written out; `model.fit()` is never called | ✅ |
+| 2 | 100–200 labelled tickets, accuracy / precision / recall / F1 on a held-out split | [data/tickets.json](data/tickets.json) (160), scored with `sklearn.metrics`, `scripts/train_and_report.py` | ✅ 95.0% / 0.949 F1 |
 | 2 | 1–3 aspects per ticket, scored independently | [aspect_sentiment.py](app/ml/aspect_sentiment.py) — keyword spotting + VADER per sentence | ✅ |
 | 2 | Urgency from category + sentiment + tier | [urgency.py](app/ml/urgency.py) | ✅ |
 | 3 | 4–6 markdown knowledge base documents | [data/knowledge_base/](data/knowledge_base/) — 5 documents, 28 chunks | ✅ |
@@ -67,7 +67,7 @@ rather than one monolithic function.
 | 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
 | 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment`, proved with a `threading.Barrier` | ✅ |
 | 7 | Type hints, black, ruff, pre-commit | mypy runs clean over `app/`; all four wired into `.pre-commit-config.yaml` | ✅ |
-| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 210 tests, 99% coverage | ✅ |
+| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 217 tests, 99% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
 
@@ -106,7 +106,7 @@ curl http://localhost:8000/health
 
 ```json
 {"ready":true,"llm_backend":"template","knowledge_chunks":28,
- "classifier_accuracy":0.925,"bandit_updates":0}
+ "classifier_accuracy":0.95,"bandit_updates":0}
 ```
 
 Nothing needs to be trained or downloaded first: the classifier trains at
@@ -462,23 +462,23 @@ This is what lets the test suite and CI run offline and deterministically.
 implemented from scratch:
 
 ```
-accuracy       : 0.925
-macro precision: 0.927
-macro recall   : 0.925
-macro F1       : 0.925
+accuracy       : 0.950
+macro precision: 0.958
+macro recall   : 0.950
+macro F1       : 0.949
 
 category          precision  recall     f1         support
-account           0.900      0.900      0.900      10
-billing           0.909      1.000      0.952      10
-feature_request   1.000      0.900      0.947      10
-technical         0.900      0.900      0.900      10
+account           1.000      1.000      1.000      10
+billing           1.000      1.000      1.000      10
+feature_request   1.000      0.800      0.889      10
+technical         0.833      1.000      0.909      10
 
 Confusion matrix (rows = actual, columns = predicted)
                   account   billing   feature_  technica
-account           9         0         0         1
+account           10        0         0         0
 billing           0         10        0         0
-feature_request   0         1         9         0
-technical         1         0         0         9
+feature_request   0         0         8         2
+technical         0         0         0         10
 ```
 
 The first version of the dataset scored a perfect 1.000, which means the task
@@ -576,20 +576,42 @@ broke. Hand-rolling this rather than pulling in Airflow/Prefect/Celery was the
 brief's explicit preference, and it means no broker, no scheduler and no extra
 service to run.
 
-### Why no scikit-learn
+### Where scikit-learn is used, and where it is not
 
-The brief allows scikit-learn for vectorisation and metrics but forbids
-`model.fit()` for the classifier. Once TF-IDF and the metrics are written out by
-hand — which makes the maths visible, the point of the exercise — scikit-learn
-has nothing left to do, so it is not a dependency at all. `app/ml/tfidf.py`,
-`app/ml/metrics.py` and `app/ml/naive_bayes.py` are the substitutes.
+The brief draws the line precisely: *"Implement the core training/inference math
+yourself (no calling `model.fit()` from scikit-learn for the classifier itself)
+… you may use scikit-learn or numpy for the surrounding vectorization and
+evaluation utilities."*
+
+| Used for | Where |
+|----------|-------|
+| TF-IDF vectorisation of the knowledge base | `TfidfVectorizer` in [app/rag/vector_store.py](app/rag/vector_store.py), given this project's own tokenizer |
+| The stratified train/test split | `train_test_split(stratify=…)` in [app/ml/dataset.py](app/ml/dataset.py) |
+| Scoring the classifier's predictions | `sklearn.metrics` in [app/ml/sklearn_metrics.py](app/ml/sklearn_metrics.py) |
+
+| **Not** used for | Where the hand-written version lives |
+|------------------|--------------------------------------|
+| The classifier itself — priors, counts, Laplace smoothing, log-probability scoring, softmax | [app/ml/naive_bayes.py](app/ml/naive_bayes.py) |
+
+**The from-scratch implementations are kept and verified, not deleted.**
+[app/ml/tfidf.py](app/ml/tfidf.py) and [app/ml/metrics.py](app/ml/metrics.py)
+still implement TF-IDF and the four metrics from their definitions, and two
+tests assert they agree with scikit-learn — the TF-IDF weights to floating-point
+epsilon (`< 1e-12`) across the whole knowledge base, and the metrics exactly,
+including the awkward case where a category is never predicted.
+
+That agreement is not a coincidence worth glossing over: our term frequency
+divides by document length and scikit-learn's does not, but that is a
+per-document constant which L2 normalisation divides straight back out. Keeping
+both means the hand-written maths is *checked against a reference* rather than
+merely asserted to be right.
 
 ---
 
 ## Testing
 
 ```bash
-pytest                                              # 213 tests
+pytest                                              # 217 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -600,8 +622,8 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 
 | File | Covers | Tests |
 |------|--------|-------|
-| `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, category-aware re-ranking | 42 |
+| `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions checked against scikit-learn | 33 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 43 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, step limit | 24 |
@@ -656,7 +678,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 213 tests, 99% coverage
+├── tests/                      # 217 tests, 99% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml
@@ -695,7 +717,7 @@ Written down deliberately rather than left for a reviewer to discover.
 
 **Dataset is synthetic and template-generated.** Real support data cannot be
 shared. 160 tickets built from per-category vocabularies, with a 45%
-cross-category noise rate so the task is not trivial. The 92.5% accuracy is
+cross-category noise rate so the task is not trivial. The 95.0% accuracy is
 honest for *this* dataset; it says nothing about real traffic, where typos,
 multi-language tickets and much longer bodies would all hurt.
 

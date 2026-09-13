@@ -16,16 +16,17 @@ run from the repository root and need no server.
 python scripts/train_and_report.py
 ```
 
-Trains the classifier on a stratified 75/25 split and prints accuracy, macro
-precision/recall/F1, per-category metrics with support counts, and the confusion
-matrix.
+Trains the classifier on a stratified 75/25 split (scikit-learn's
+`train_test_split`) and prints accuracy, macro precision/recall/F1, per-category
+metrics with support counts, and the confusion matrix - all scored with
+`sklearn.metrics`.
 
 It uses **exactly the same code path** the API uses
 (`TicketClassifierService`), so the reported numbers cannot drift away from the
 running service. The same figures are also served live at `GET /ml/report`.
 
-Current output: **92.5% accuracy, 0.925 macro-F1**, with three errors, all on
-tickets that genuinely mention two categories.
+Current output: **95.0% accuracy, 0.949 macro-F1**. The two errors are both
+feature requests read as technical - tickets that genuinely mention both.
 
 ---
 

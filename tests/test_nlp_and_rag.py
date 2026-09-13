@@ -9,11 +9,11 @@ from app.ml.aspect_sentiment import (
     split_into_sentences,
 )
 from app.ml.dataset import CATEGORIES, load_tickets, stratified_split
-from app.ml.tfidf import cosine_similarity
+from app.ml.tfidf import TfidfVectorizer
 from app.ml.urgency import score_urgency, urgency_bucket
 from app.rag.chunking import chunk_knowledge_base, chunk_markdown_document
 from app.rag.retriever import KnowledgeRetriever, topic_of_document
-from app.rag.vector_store import FaissVectorStore
+from app.rag.vector_store import FaissVectorStore, build_vectorizer
 from app.settings import SETTINGS
 
 # ---------------------------------------------------------------------------
@@ -286,18 +286,63 @@ def test_faiss_scores_match_cosine_similarity():
     """Inner product on unit-length vectors is exactly the cosine.
 
     This is the property that lets IndexFlatIP stand in for a cosine index, so
-    it is worth pinning rather than assuming.
+    it is worth pinning rather than assuming. The cosine is recomputed here
+    straight from the vectors, without going near FAISS.
     """
+    import numpy as np
+
     chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
     store = FaissVectorStore().build(chunks)
 
     query = "refund a duplicate charge on my invoice"
     hits = store.search(query, top_k=3)
+    assert len(hits) > 0
 
-    query_vector = store.vectorizer.transform(query)
+    query_row = np.asarray(store.vectorizer.transform([query]).todense())[0]
+
     for hit in hits:
-        chunk_vector = store.vectorizer.transform(hit.chunk.searchable_text())
-        assert hit.score == pytest.approx(cosine_similarity(query_vector, chunk_vector), abs=1e-5)
+        chunk_row = np.asarray(store.vectorizer.transform([hit.chunk.searchable_text()]).todense())[
+            0
+        ]
+
+        # Both rows are L2-normalised, so the dot product is the cosine.
+        expected = float(np.dot(query_row, chunk_row))
+        assert hit.score == pytest.approx(expected, abs=1e-5)
+
+
+def test_hand_written_tfidf_matches_sklearn():
+    """The from-scratch TF-IDF is checked against scikit-learn's.
+
+    Our term frequency divides by the document length and scikit-learn's does
+    not, but that is a per-document constant which L2 normalisation divides
+    straight back out - so the two weightings are the same function. Keeping
+    both is only worthwhile if that holds, so it is verified here on the real
+    knowledge base rather than argued in a comment.
+    """
+    import numpy as np
+
+    chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
+    documents = [chunk.searchable_text() for chunk in chunks]
+
+    ours = TfidfVectorizer().fit(documents)
+    theirs = build_vectorizer()
+    reference_matrix = theirs.fit_transform(documents)
+    reference_vocabulary = list(theirs.get_feature_names_out())
+
+    assert sorted(ours.inverse_document_frequency.keys()) == sorted(reference_vocabulary)
+
+    largest_difference = 0.0
+    for row in range(len(documents)):
+        our_vector = ours.transform(documents[row])
+        reference_row = np.asarray(reference_matrix[row].todense())[0]
+
+        for column in range(len(reference_vocabulary)):
+            word = reference_vocabulary[column]
+            difference = abs(our_vector.get(word, 0.0) - float(reference_row[column]))
+            largest_difference = max(largest_difference, difference)
+
+    # Floating point epsilon, not a tolerance chosen to make the test pass.
+    assert largest_difference < 1e-12
 
 
 def test_asking_for_more_chunks_than_exist_is_safe():

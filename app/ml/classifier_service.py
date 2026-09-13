@@ -8,8 +8,9 @@ whole class of "stale artefact" problems.
 from pathlib import Path
 
 from app.ml.dataset import CATEGORIES, load_tickets, stratified_split
-from app.ml.metrics import classification_report, confusion_matrix
 from app.ml.naive_bayes import NaiveBayesTextClassifier
+from app.ml.sklearn_metrics import classification_report as sklearn_classification_report
+from app.ml.sklearn_metrics import confusion as sklearn_confusion_matrix
 from app.ml.text_utils import join_ticket_text
 
 
@@ -61,10 +62,13 @@ class TicketClassifierService:
         test_labels = [ticket.category for ticket in test_tickets]
         predicted_labels = self.model.predict_many(test_texts)
 
-        self.evaluation = classification_report(test_labels, predicted_labels, CATEGORIES)
+        # The published report comes from scikit-learn, which the assignment
+        # allows for evaluation utilities. Only the *scoring* is scikit-learn's;
+        # every prediction it is scoring came from the hand-written model above.
+        self.evaluation = sklearn_classification_report(test_labels, predicted_labels, CATEGORIES)
         self.evaluation["training_size"] = len(training_tickets)
         self.evaluation["test_size"] = len(test_tickets)
-        self.confusion = confusion_matrix(test_labels, predicted_labels, CATEGORIES)
+        self.confusion = sklearn_confusion_matrix(test_labels, predicted_labels, CATEGORIES)
 
         # --- final model: trained on everything ---
         all_texts = [ticket.as_text() for ticket in tickets]

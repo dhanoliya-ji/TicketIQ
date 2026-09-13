@@ -1,8 +1,9 @@
 """Loading and splitting the labelled ticket dataset."""
 
 import json
-import random
 from pathlib import Path
+
+from sklearn.model_selection import train_test_split
 
 from app.ml.text_utils import join_ticket_text
 
@@ -53,36 +54,22 @@ def stratified_split(
 ) -> tuple[list[LabelledTicket], list[LabelledTicket]]:
     """Split into (training set, test set), keeping category balance.
 
-    "Stratified" means we split each category separately, so the held-out set
-    contains roughly the same proportion of every category as the full
-    dataset.  A plain random split could by chance leave a category out.
+    "Stratified" means the held-out set contains the same proportion of every
+    category as the full dataset.  A plain random split could, by chance, leave
+    a category out of one side entirely and make the report meaningless.
+
+    This is scikit-learn's ``train_test_split``, which the assignment allows for
+    exactly this kind of surrounding utility.  The classifier's own training and
+    inference maths is still written out by hand in ``naive_bayes.py`` - no
+    ``model.fit()`` anywhere.
     """
-    random_generator = random.Random(seed)
+    labels = [ticket.category for ticket in tickets]
 
-    # Group the tickets by their category.
-    grouped: dict[str, list[LabelledTicket]] = {}
-    for ticket in tickets:
-        if ticket.category not in grouped:
-            grouped[ticket.category] = []
-        grouped[ticket.category].append(ticket)
-
-    training_set: list[LabelledTicket] = []
-    test_set: list[LabelledTicket] = []
-
-    for category in sorted(grouped.keys()):
-        group = list(grouped[category])
-        random_generator.shuffle(group)
-
-        test_size = int(round(len(group) * test_fraction))
-        # Never let a category disappear completely from either side.
-        if test_size == 0 and len(group) > 1:
-            test_size = 1
-        if test_size >= len(group):
-            test_size = len(group) - 1
-
-        test_set.extend(group[:test_size])
-        training_set.extend(group[test_size:])
-
-    random_generator.shuffle(training_set)
-    random_generator.shuffle(test_set)
-    return training_set, test_set
+    training_set, test_set = train_test_split(
+        tickets,
+        test_size=test_fraction,
+        random_state=seed,
+        stratify=labels,  # this is what keeps the category balance
+        shuffle=True,
+    )
+    return list(training_set), list(test_set)

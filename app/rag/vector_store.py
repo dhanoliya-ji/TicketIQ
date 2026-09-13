@@ -2,39 +2,43 @@
 
 How the pieces fit
 ------------------
-1. Each chunk is turned into a **TF-IDF** vector by the hand-written vectoriser
-   in ``app/ml/tfidf.py``. Those vectors are sparse (a dictionary of word to
-   weight) and length-normalised.
-2. The sparse vectors are projected onto a fixed vocabulary to give dense
-   ``float32`` rows, which is the shape FAISS works with.
+1. Each chunk is turned into a **TF-IDF** vector by scikit-learn's
+   ``TfidfVectorizer``, which the assignment names for exactly this job
+   ("scikit-learn ... for vectorization/metrics only"). It is given this
+   project's own ``tokenize`` function as its analyser, so the vocabulary is
+   the same lower-cased, stop-word-filtered one the classifier sees.
+2. The vectors come out L2-normalised and sparse; ``toarray`` turns them into
+   the dense ``float32`` rows FAISS indexes.
 3. The rows go into a ``faiss.IndexFlatIP`` - a flat index scored by **inner
    product**. Because every stored vector has length 1, the inner product of a
    query with a chunk *is* their cosine similarity, so no separate cosine step
    is needed.
 
+On the hand-written TF-IDF next door
+------------------------------------
+``app/ml/tfidf.py`` implements the same weighting from its definition, and
+``test_hand_written_tfidf_matches_sklearn`` shows the two agree to floating
+point epsilon on the real knowledge base. That is not an accident: our term
+frequency divides by the document length where scikit-learn does not, and L2
+normalisation divides that constant straight back out again. Keeping both means
+the from-scratch version is verified against a reference rather than merely
+asserted, which is the same arrangement used for the evaluation metrics.
+
 Why ``IndexFlatIP`` and not an approximate index
 ------------------------------------------------
 ``Flat`` means exhaustive: FAISS compares the query against every stored
-vector, so the results are exact rather than approximate. With a knowledge base
-of a few dozen chunks that is the right trade - an approximate index such as
-``IVFFlat`` or ``HNSW`` only starts paying for itself at hundreds of thousands
-of vectors, and it has to be *trained* on a sample first. The index type is the
-one line that would change if this knowledge base ever grew that far.
-
-Why the query vector is normalised in sparse space
---------------------------------------------------
-A query usually contains words the knowledge base has never seen. Those words
-contribute to the query's own length but can never match anything, so they are
-included when the vector is normalised and then dropped during projection. The
-result is a query vector whose length is at most 1, and whose inner product
-with a chunk is exactly the cosine of the two full vectors. Normalising after
-dropping them would quietly inflate every score.
+vector, so the results are exact rather than approximate. An approximate index
+such as ``IVFFlat`` or ``HNSW`` only starts paying for itself at hundreds of
+thousands of vectors, and it has to be *trained* on a sample first. The index
+type is the one line that would change if this knowledge base ever grew that
+far.
 """
 
 import faiss
 import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-from app.ml.tfidf import SparseVector, TfidfVectorizer
+from app.ml.text_utils import tokenize
 from app.rag.chunking import KnowledgeChunk
 
 
@@ -51,18 +55,28 @@ class SearchHit:
         return result
 
 
+def build_vectorizer() -> TfidfVectorizer:
+    """The TF-IDF settings used for the knowledge base.
+
+    ``analyzer=tokenize`` hands scikit-learn this project's tokenizer, so it
+    does no preprocessing of its own and the vocabulary matches the rest of the
+    system. The remaining arguments are spelled out rather than left to default
+    so the weighting is readable here instead of in scikit-learn's docs.
+    """
+    return TfidfVectorizer(
+        analyzer=tokenize,
+        norm="l2",  # unit length, which is what makes inner product = cosine
+        smooth_idf=True,  # idf = log((1 + n) / (1 + df)) + 1
+        sublinear_tf=False,  # plain term counts, not 1 + log(count)
+    )
+
+
 class FaissVectorStore:
     """A FAISS flat inner-product index over TF-IDF chunk vectors."""
 
     def __init__(self) -> None:
-        self.vectorizer = TfidfVectorizer()
+        self.vectorizer = build_vectorizer()
         self.chunks: list[KnowledgeChunk] = []
-
-        # The fixed word order that turns a sparse vector into a dense row.
-        self.vocabulary: list[str] = []
-        self.word_positions: dict[str, int] = {}
-
-        # The FAISS index itself, built in build().
         self.index: faiss.Index | None = None
 
     # ------------------------------------------------------------------
@@ -80,34 +94,24 @@ class FaissVectorStore:
             documents.append(chunk.searchable_text())
 
         # The IDF values must be learned from the corpus we are going to
-        # search, which is why fit() happens here and not at import time.
-        self.vectorizer.fit(documents)
+        # search, which is why fit happens here and not at import time.
+        sparse_matrix = self.vectorizer.fit_transform(documents)
 
-        # A stable word order, so a word always lands in the same column.
-        self.vocabulary = sorted(self.vectorizer.inverse_document_frequency.keys())
-        self.word_positions = {}
-        for position in range(len(self.vocabulary)):
-            self.word_positions[self.vocabulary[position]] = position
+        # FAISS wants a dense, C-contiguous float32 array.
+        dense_matrix = np.asarray(sparse_matrix.todense(), dtype="float32")
 
-        # One dense row per chunk.
-        matrix = np.zeros((len(self.chunks), len(self.vocabulary)), dtype="float32")
-        for row in range(len(documents)):
-            sparse_vector = self.vectorizer.transform(documents[row])
-            self._write_dense_row(sparse_vector, matrix[row])
-
-        # Inner product on unit-length vectors is cosine similarity.
-        index = faiss.IndexFlatIP(len(self.vocabulary))
-        index.add(matrix)
+        index = faiss.IndexFlatIP(dense_matrix.shape[1])
+        index.add(dense_matrix)
         self.index = index
 
         return self
 
-    def _write_dense_row(self, sparse_vector: SparseVector, row: np.ndarray) -> None:
-        """Copy a sparse vector into a dense row, dropping unknown words."""
-        for word, weight in sparse_vector.items():
-            position = self.word_positions.get(word)
-            if position is not None:
-                row[position] = weight
+    @property
+    def vocabulary(self) -> list[str]:
+        """The words the index has a column for, in column order."""
+        if self.index is None:
+            return []
+        return list(self.vectorizer.get_feature_names_out())
 
     # ------------------------------------------------------------------
     # Searching
@@ -119,8 +123,10 @@ class FaissVectorStore:
         if top_k < 1:
             raise ValueError("top_k must be at least 1")
 
-        query_vector = np.zeros((1, len(self.vocabulary)), dtype="float32")
-        self._write_dense_row(self.vectorizer.transform(query), query_vector[0])
+        # Words the knowledge base has never seen have no column, so they are
+        # simply absent from the query vector.
+        query_matrix = self.vectorizer.transform([query])
+        query_vector = np.asarray(query_matrix.todense(), dtype="float32")
 
         # FAISS cannot return more neighbours than it holds.
         wanted = min(top_k, len(self.chunks))

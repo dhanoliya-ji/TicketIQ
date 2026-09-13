@@ -1,9 +1,13 @@
 # `app/ml/` — classical NLP and machine learning
 
-No deep learning and no `model.fit()` from scikit-learn. The counting, the
-smoothing, the TF-IDF weighting and the evaluation metrics are all written out
-by hand so the maths is visible. scikit-learn is not a dependency of this
-project at all.
+No deep learning, and **no `model.fit()`** — the classifier's counting,
+smoothing and log-probability scoring are written out by hand so the maths is
+visible.
+
+scikit-learn is used only where the brief permits it: the stratified split, the
+TF-IDF vectorisation of the knowledge base, and scoring the classifier's
+predictions. The from-scratch TF-IDF and metrics are kept alongside and tested
+for agreement with it, so they are verified rather than merely asserted.
 
 ## Files
 

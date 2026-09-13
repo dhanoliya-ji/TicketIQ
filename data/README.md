@@ -42,7 +42,7 @@ tickets:
 > payment failed in the checkout but the amount left my bank account.**"
 
 The label stays the category of the **subject line**, which is what a human
-triager would go by. That brings accuracy to a believable **92.5%**, and the
+triager would go by. That brings accuracy to a believable **95.0%**, and the
 remaining errors are exactly the genuinely ambiguous tickets. Real tickets are
 messy in precisely this way.
 
