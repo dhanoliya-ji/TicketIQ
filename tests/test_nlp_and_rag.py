@@ -207,6 +207,30 @@ def test_chunking_ignores_empty_sections(tmp_path):
     assert chunks[0].heading == "Real"
 
 
+def test_the_folder_readme_is_not_indexed_as_policy():
+    """The knowledge base README documents the corpus; it is not part of it.
+
+    Without this exclusion the developer notes would be retrievable and could
+    be quoted back to a customer as if they were policy.
+    """
+    chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
+
+    sources = {chunk.source.lower() for chunk in chunks}
+    assert "readme.md" not in sources
+    # The five real policy documents are all still indexed.
+    assert len(sources) == 5
+
+
+def test_readme_exclusion_is_case_insensitive(tmp_path):
+    (tmp_path / "README.md").write_text("# Notes\n\n## Dev\nInternal.\n", encoding="utf-8")
+    (tmp_path / "policy.md").write_text("# Policy\n\n## Rule\nReal rule.\n", encoding="utf-8")
+
+    chunks = chunk_knowledge_base(tmp_path)
+
+    assert len(chunks) == 1
+    assert chunks[0].heading == "Rule"
+
+
 def test_chunk_ids_are_unique_across_the_knowledge_base():
     chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
     identifiers = [chunk.chunk_id for chunk in chunks]

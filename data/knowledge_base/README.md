@@ -28,6 +28,11 @@ Heading-based chunking is used rather than a fixed character window because
 these documents are written as short, self-contained rules: a section is the
 natural unit of retrieval, and a split never cuts a rule in half.
 
+**This README is not indexed.** `chunk_knowledge_base` skips any file named
+`README.md`, because these developer notes are documentation *about* the corpus,
+not policy the agent may quote back to a customer. Without that exclusion this
+file would add five chunks of internal commentary to the retrievable set.
+
 ## Writing conventions
 
 These are not decorative — the pipeline depends on them:

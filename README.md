@@ -15,7 +15,7 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 185 passing, **98%** coverage of `app/` |
+| **Tests** | 187 passing, **98%** coverage of `app/` |
 | **Classifier** | 92.5% accuracy / 0.925 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Stack** | FastAPI · Pydantic · VADER · SQLite · pytest · black · ruff · Docker · GitHub Actions |
@@ -487,7 +487,7 @@ has nothing left to do, so it is not a dependency at all. `app/ml/tfidf.py`,
 ## Testing
 
 ```bash
-pytest                                              # 185 tests
+pytest                                              # 187 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -499,7 +499,7 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | File | Covers | Tests |
 |------|--------|-------|
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search | 31 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search | 33 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, step limit | 24 |
@@ -552,7 +552,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 185 tests, 98% coverage
+├── tests/                      # 187 tests, 98% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml

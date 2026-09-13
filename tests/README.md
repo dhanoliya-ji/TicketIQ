@@ -1,6 +1,6 @@
 # `tests/` — the test suite
 
-**185 tests, 98% coverage of `app/`.** Every test is offline and deterministic:
+**187 tests, 98% coverage of `app/`.** Every test is offline and deterministic:
 no model server, no network, no clock dependence.
 
 ```bash
@@ -17,7 +17,7 @@ pytest -k "bandit and converge"               # one test by name
 |------|--------|-------|
 | `conftest.py` | Shared fixtures and the fake language model | — |
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search | 31 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search | 33 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, the step limit | 24 |

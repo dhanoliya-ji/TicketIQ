@@ -8,6 +8,11 @@ rule in half, and the heading itself is useful context for the language model.
 
 from pathlib import Path
 
+# Markdown files in the knowledge base folder that are documentation *about*
+# the corpus rather than part of it. Indexing these would let developer notes
+# be retrieved and quoted back to a customer as if they were policy.
+EXCLUDED_FILE_NAMES = {"readme.md"}
+
 
 class KnowledgeChunk:
     """One retrievable section of a knowledge base document."""
@@ -92,6 +97,10 @@ def chunk_knowledge_base(directory: Path) -> list[KnowledgeChunk]:
     all_chunks: list[KnowledgeChunk] = []
     # sorted() keeps chunk ids stable between runs.
     for path in sorted(directory.glob("*.md")):
+        # The folder's own README documents the knowledge base for developers;
+        # it is not policy the agent may quote to a customer, so it is skipped.
+        if path.name.lower() in EXCLUDED_FILE_NAMES:
+            continue
         all_chunks.extend(chunk_markdown_document(path))
 
     if len(all_chunks) == 0:
