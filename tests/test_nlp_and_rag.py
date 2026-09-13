@@ -9,10 +9,11 @@ from app.ml.aspect_sentiment import (
     split_into_sentences,
 )
 from app.ml.dataset import CATEGORIES, load_tickets, stratified_split
+from app.ml.tfidf import cosine_similarity
 from app.ml.urgency import score_urgency, urgency_bucket
 from app.rag.chunking import chunk_knowledge_base, chunk_markdown_document
 from app.rag.retriever import KnowledgeRetriever, topic_of_document
-from app.rag.vector_store import InMemoryVectorStore
+from app.rag.vector_store import FaissVectorStore
 from app.settings import SETTINGS
 
 # ---------------------------------------------------------------------------
@@ -249,7 +250,7 @@ def test_chunking_a_folder_without_markdown_raises(tmp_path):
 
 def test_vector_store_returns_the_most_similar_chunk_first():
     chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
-    store = InMemoryVectorStore().build(chunks)
+    store = FaissVectorStore().build(chunks)
 
     hits = store.search("refund a duplicate charge on my invoice", top_k=3)
 
@@ -262,21 +263,64 @@ def test_vector_store_returns_the_most_similar_chunk_first():
 
 def test_vector_store_drops_chunks_with_no_overlap():
     chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
-    store = InMemoryVectorStore().build(chunks)
+    store = FaissVectorStore().build(chunks)
 
     hits = store.search("xylophone zebra quasar", top_k=5)
     assert hits == []
 
 
+def test_the_store_really_is_a_faiss_index():
+    """The chunks live in FAISS, not in a Python list scanned by hand."""
+    import faiss
+
+    chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
+    store = FaissVectorStore().build(chunks)
+
+    assert isinstance(store.index, faiss.IndexFlatIP)
+    # Every chunk was added to the index, and the index width is the vocabulary.
+    assert store.index.ntotal == len(chunks)
+    assert store.index.d == len(store.vocabulary)
+
+
+def test_faiss_scores_match_cosine_similarity():
+    """Inner product on unit-length vectors is exactly the cosine.
+
+    This is the property that lets IndexFlatIP stand in for a cosine index, so
+    it is worth pinning rather than assuming.
+    """
+    chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
+    store = FaissVectorStore().build(chunks)
+
+    query = "refund a duplicate charge on my invoice"
+    hits = store.search(query, top_k=3)
+
+    query_vector = store.vectorizer.transform(query)
+    for hit in hits:
+        chunk_vector = store.vectorizer.transform(hit.chunk.searchable_text())
+        assert hit.score == pytest.approx(cosine_similarity(query_vector, chunk_vector), abs=1e-5)
+
+
+def test_asking_for_more_chunks_than_exist_is_safe():
+    """FAISS pads a short result with -1, which must not become a hit."""
+    chunks = chunk_knowledge_base(SETTINGS.knowledge_base_dir)
+    store = FaissVectorStore().build(chunks)
+
+    hits = store.search("refund", top_k=len(chunks) + 50)
+
+    assert len(hits) <= len(chunks)
+    for hit in hits:
+        assert hit.score > 0.0
+
+
 def test_vector_store_rejects_bad_usage():
-    store = InMemoryVectorStore()
+    store = FaissVectorStore()
     with pytest.raises(RuntimeError):
         store.search("anything", top_k=1)
 
     with pytest.raises(ValueError):
-        InMemoryVectorStore().build([])
+        FaissVectorStore().build([])
 
-    built = InMemoryVectorStore().build(chunk_knowledge_base(SETTINGS.knowledge_base_dir))
+    built = FaissVectorStore().build(chunk_knowledge_base(SETTINGS.knowledge_base_dir))
     with pytest.raises(ValueError):
         built.search("refund", top_k=0)
 

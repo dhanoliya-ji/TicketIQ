@@ -19,7 +19,7 @@ read on its own; the only module that knows about all of them is
 | Package | Responsibility | Key entry point |
 |---------|----------------|-----------------|
 | [`ml/`](ml/README.md) | Classical NLP and machine learning: the classifier, TF-IDF, metrics, aspect sentiment, urgency | `TicketClassifierService`, `AspectSentimentAnalyzer` |
-| [`rag/`](rag/README.md) | Knowledge base chunking, the in-memory vector store, retrieval | `KnowledgeRetriever` |
+| [`rag/`](rag/README.md) | Knowledge base chunking, the FAISS vector store, retrieval | `KnowledgeRetriever` |
 | [`llm/`](llm/README.md) | Talking to a language model, plus the four pipeline configurations the RL layer chooses from | `LlmClient`, `ALL_CONFIGS` |
 | [`agent/`](agent/README.md) | The ReAct reasoning loop and the mock back-office tools | `TriageAgent` |
 | [`rl/`](rl/README.md) | The epsilon-greedy contextual bandit, the state key and the reward function | `EpsilonGreedyContextualBandit` |

@@ -15,11 +15,11 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 210 passing, **99%** coverage of `app/` |
+| **Tests** | 213 passing, **99%** coverage of `app/` |
 | **Classifier** | 92.5% accuracy / 0.925 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
-| **Stack** | FastAPI · Pydantic · VADER · SQLite · pytest · black · ruff · Docker · GitHub Actions |
+| **Stack** | FastAPI · Pydantic · FAISS · numpy · VADER · SQLite · pytest · black · ruff · mypy · Docker · GitHub Actions |
 
 ---
 
@@ -51,7 +51,7 @@ rather than one monolithic function.
 | 2 | 1–3 aspects per ticket, scored independently | [aspect_sentiment.py](app/ml/aspect_sentiment.py) — keyword spotting + VADER per sentence | ✅ |
 | 2 | Urgency from category + sentiment + tier | [urgency.py](app/ml/urgency.py) | ✅ |
 | 3 | 4–6 markdown knowledge base documents | [data/knowledge_base/](data/knowledge_base/) — 5 documents, 28 chunks | ✅ |
-| 3 | Vector store, chunk + embed + top-K | [vector_store.py](app/rag/vector_store.py) — in-memory cosine index | ✅ |
+| 3 | Vector store, chunk + embed + top-K | [vector_store.py](app/rag/vector_store.py) — **FAISS** `IndexFlatIP` over TF-IDF vectors | ✅ |
 | 3 | Two distinct LLM configurations | [configs.py](app/llm/configs.py) — two prompt variants, each on its own Ollama model | ⚠️ code path tested with mocks; never run against a live Ollama — see [scope notes](#shortcuts-and-scope-notes) |
 | 4 | ReAct loop choosing answer / tool / escalate | [react_agent.py](app/agent/react_agent.py) | ✅ |
 | 4 | Mock `check_account_status` and `check_refund_eligibility` | [tools.py](app/agent/tools.py) | ✅ |
@@ -589,7 +589,7 @@ has nothing left to do, so it is not a dependency at all. `app/ml/tfidf.py`,
 ## Testing
 
 ```bash
-pytest                                              # 210 tests
+pytest                                              # 213 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -601,7 +601,7 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | File | Covers | Tests |
 |------|--------|-------|
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search, category-aware re-ranking | 39 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, category-aware re-ranking | 42 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, step limit | 24 |
@@ -643,7 +643,7 @@ TicketIQ/
 │   ├── schemas.py              # the whole HTTP contract, in one file
 │   ├── settings.py             # every tunable value, read from the environment
 │   ├── ml/                     # classifier, TF-IDF, metrics, aspect sentiment, urgency
-│   ├── rag/                    # chunking, in-memory vector store, retriever
+│   ├── rag/                    # chunking, the FAISS vector store, retriever
 │   ├── llm/                    # Ollama client, offline fallback, the four configurations
 │   ├── agent/                  # ReAct loop and the mock tools
 │   ├── rl/                     # contextual bandit, state and reward
@@ -656,7 +656,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 210 tests, 99% coverage
+├── tests/                      # 213 tests, 99% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml
@@ -723,8 +723,8 @@ step if traffic is low.
 customer changing their mind. A production system would want a sliding window so
 the bandit can track a model that gets better or worse over time.
 
-**Single process, in-memory components.** The classifier, the index and the
-bandit live in the process; only the workflow state and bandit statistics are on
+**Single process, in-process components.** The classifier, the FAISS index and
+the bandit live in the process; only the workflow state and bandit statistics are on
 disk. Running several replicas would need the bandit statistics moved into shared
 storage — the `save`/`load` seam in `app/rl/bandit.py` is where that would go.
 

@@ -214,8 +214,8 @@ states that never repeat.
 | Step | Choice | Why |
 |------|--------|-----|
 | Chunking | one chunk per `##` section | the knowledge base is written as short self-contained policy sections, so a section is the natural retrieval unit; it never cuts a rule in half |
-| Embedding | hand-written TF-IDF sparse vectors | the maths stays visible, and there is no model download |
-| Index | in-memory cosine similarity | 28 chunks: brute force is faster than FAISS and adds no native dependency |
+| Embedding | hand-written TF-IDF, projected to dense `float32` | the maths stays visible, and there is no model download |
+| Index | FAISS `IndexFlatIP` | inner product on unit-length vectors *is* cosine, so a flat index gives exact cosine search |
 | Query | `category + subject + body` | the predicted category is a cheap hint that pulls the search toward the right document |
 | Filtering | drop zero-similarity hits | better to return two relevant chunks than pad to five with noise |
 | Re-ranking | damp chunks from off-topic documents | see below |
@@ -231,9 +231,20 @@ than twice the textual match to survive, which keeps it reachable when it really
 is the better answer (a refund question misclassified as technical still finds
 the refund policy) while keeping it out of the way the rest of the time.
 
-The assignment allows FAISS, ChromaDB **or** a basic in-memory cosine index;
-this is the third option. `InMemoryVectorStore.search()` has the same shape a
-FAISS-backed implementation would, so swapping it would touch one file.
+**Why `IndexFlatIP` and not an approximate index.** `Flat` means exhaustive:
+FAISS compares the query against every stored vector, so results are exact
+rather than approximate. An approximate index (`IVFFlat`, `HNSW`) only pays for
+itself at hundreds of thousands of vectors and has to be *trained* on a sample
+first. With 28 chunks that would be cost without benefit. The index type is the
+one line that changes if the knowledge base ever grows that far.
+
+**Why the query is normalised before projection.** A query usually contains
+words the knowledge base has never seen. They add to the query's own length but
+can never match anything, so they are counted when the vector is normalised and
+then dropped when it is projected onto the vocabulary. The result is a query
+vector of length at most 1 whose inner product with a chunk is exactly the
+cosine of the two full vectors. Normalising *after* dropping them would quietly
+inflate every score.
 
 ---
 
@@ -402,7 +413,7 @@ POST /feedback
 | Hand-rolled DAG runner | Airflow / Prefect / Celery | The assignment asks to see dependency and state reasoning, not orchestrator familiarity. ~150 lines, no broker. |
 | SQLite state | in-memory dictionary | Feedback arrives late, status must be real, retries must be cheap. |
 | Contextual bandit | Q-learning / deep RL | One-step decision, immediate reward, few samples available. |
-| In-memory cosine index | FAISS / ChromaDB | 28 chunks; no native dependency; the maths stays readable. |
+| FAISS `IndexFlatIP` | ChromaDB | ChromaDB's default embedder downloads a model on first use, which would break the offline guarantee CI and the Docker image rely on. |
 | No scikit-learn | sklearn for vectorising/metrics | Allowed but not needed once TF-IDF and the metrics are hand-written; one fewer dependency. |
 | Template LLM fallback | fail without Ollama | Tests, CI and review must work on a machine with no model server. |
 | Threads, not async, inside the engine | asyncio | The parallel stages are CPU-light Python calls; threads keep the stage functions plain synchronous code. |

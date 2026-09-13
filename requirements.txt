@@ -8,7 +8,9 @@ fastapi>=0.110.0
 uvicorn>=0.27.0
 pydantic>=2.6.0
 
-# Numeric helpers used by the TF-IDF vectoriser and the vector store
+# Vector store. faiss-cpu holds the knowledge base embeddings and answers the
+# top-K similarity search; numpy builds the dense float32 rows it indexes.
+faiss-cpu>=1.8.0
 numpy>=1.26.0
 
 # Aspect level sentiment scoring (rule + lexicon based, no model download)

@@ -1,6 +1,6 @@
 # `tests/` — the test suite
 
-**210 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
+**213 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
 no model server, no network, no clock dependence.
 
 ```bash
@@ -17,7 +17,7 @@ pytest -k "bandit and converge"               # one test by name
 |------|--------|-------|
 | `conftest.py` | Shared fixtures and the fake language model | — |
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions | 30 |
-| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, cosine search, category-aware re-ranking | 39 |
+| `test_nlp_and_rag.py` | aspect extraction, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, category-aware re-ranking | 42 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, state store, schema self-healing | 26 |
 | `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, the step limit | 24 |
@@ -80,7 +80,7 @@ against a plain average.
 **Deliberate coverage gaps.** The ~1% not covered is the `except` arm of the
 environment-variable parsers in `settings.py` (malformed numeric env vars) and a
 couple of defensive branches. Everything with real logic — the bandit, the DAG
-engine, the classifier, TF-IDF, chunking and the vector store — is at 100%.
+engine, the classifier, TF-IDF, chunking and the retriever — is at 100%.
 
 ## CI
 

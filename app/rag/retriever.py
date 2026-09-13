@@ -17,7 +17,7 @@ than being excluded outright.
 from pathlib import Path
 
 from app.rag.chunking import chunk_knowledge_base
-from app.rag.vector_store import InMemoryVectorStore, SearchHit
+from app.rag.vector_store import FaissVectorStore, SearchHit
 
 # Which ticket category each knowledge base document serves. The key is a
 # prefix of the file name, so renaming a file only means editing this table.
@@ -58,7 +58,7 @@ class KnowledgeRetriever:
 
     def __init__(self, knowledge_base_dir: Path) -> None:
         self.knowledge_base_dir = knowledge_base_dir
-        self.store = InMemoryVectorStore()
+        self.store = FaissVectorStore()
         self.is_loaded = False
 
     def load(self) -> "KnowledgeRetriever":
