@@ -253,6 +253,41 @@ def test_the_ml_report_endpoint_returns_metrics(client):
     assert "billing" in body["confusion_matrix"]
 
 
+# ---------------------------------------------------------------------------
+# The live console
+# ---------------------------------------------------------------------------
+
+
+def test_the_console_page_is_served_at_the_root(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "TicketIQ" in response.text
+
+
+def test_the_console_assets_are_served(client):
+    stylesheet = client.get("/static/styles.css")
+    script = client.get("/static/app.js")
+
+    assert stylesheet.status_code == 200
+    assert script.status_code == 200
+    # The page is useless if the script is empty, so check it has real content.
+    assert len(script.text) > 1000
+
+
+def test_the_console_does_not_shadow_the_api(client):
+    """The static mount must not swallow API routes."""
+    assert client.get("/health").status_code == 200
+    assert client.get("/workflow/graph").status_code == 200
+
+
+def test_the_console_is_not_in_the_openapi_schema(client):
+    # The UI is not part of the documented API surface.
+    schema = client.get("/openapi.json").json()
+    assert "/" not in schema["paths"]
+
+
 def test_the_openapi_schema_is_served(client):
     schema = client.get("/openapi.json").json()
 

@@ -12,6 +12,7 @@ read on its own; the only module that knows about all of them is
 | `schemas.py` | Every request and response model, in one file, so the whole HTTP contract fits on one screen. FastAPI turns these into the OpenAPI docs at `/docs`. |
 | `settings.py` | One `Settings` object built from environment variables, with working defaults. Import `SETTINGS`; never read `os.environ` elsewhere. |
 | `__init__.py` | Package marker and version string. |
+| `static/` | The live console served at `/` — plain HTML, CSS and JavaScript, no build step. See [its README](static/README.md). |
 
 ## Subpackages
 

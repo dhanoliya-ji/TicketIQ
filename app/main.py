@@ -1,17 +1,27 @@
-"""The FastAPI application: three required endpoints plus three for inspection.
+"""The FastAPI application: three required endpoints plus inspection and the UI.
 
 Run it locally with::
 
     uvicorn app.main:app --reload
 
-Interactive documentation is then served at http://localhost:8000/docs
+Then:
+
+* http://localhost:8000/      - the live console (a demo UI for the whole pipeline)
+* http://localhost:8000/docs  - interactive OpenAPI documentation
+
+The console is a plain HTML/CSS/JavaScript page served by this same
+application, so it shares an origin with the API and needs no CORS setup, no
+Node tooling and no extra dependency.
 """
 
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.schemas import (
     ALLOWED_TIERS,
@@ -34,6 +44,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("ticketiq")
+
+# The folder holding the live console (index.html, styles.css, app.js).
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
@@ -64,10 +77,23 @@ app = FastAPI(
     ),
 )
 
+# Serve the console's assets. This is mounted under /static rather than at the
+# root so it can never shadow an API route.
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 # One service instance for the whole process. It holds the trained classifier,
 # the knowledge index and the bandit statistics, all of which are expensive to
 # build and safe to share between requests.
 service = TriageService()
+
+
+# ---------------------------------------------------------------------------
+# The live console
+# ---------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+def get_console() -> FileResponse:
+    """Serve the demo UI at the root of the service."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 # ---------------------------------------------------------------------------

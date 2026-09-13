@@ -14,13 +14,15 @@
 | How does the DAG engine resume a failed run? | [ARCHITECTURE.md section 3](ARCHITECTURE.md#3-the-workflow-engine) |
 | What exactly does Naive Bayes compute here? | [ARCHITECTURE.md section 4](ARCHITECTURE.md#4-classical-ml-the-classifier) |
 | What happens when the model returns nonsense? | [ARCHITECTURE.md section 8](ARCHITECTURE.md#8-the-agentic-layer) |
+| How do I demo this to someone? | [root README](../README.md#the-live-console) |
 | What was cut for time? | [root README](../README.md#shortcuts-and-scope-notes) |
 
 Each source directory also has its own README describing the files in it and the
 reasoning behind them: [`app/`](../app/README.md), [`app/ml/`](../app/ml/README.md),
 [`app/rag/`](../app/rag/README.md), [`app/llm/`](../app/llm/README.md),
 [`app/agent/`](../app/agent/README.md), [`app/rl/`](../app/rl/README.md),
-[`app/workflow/`](../app/workflow/README.md), [`data/`](../data/README.md),
+[`app/workflow/`](../app/workflow/README.md), [`app/static/`](../app/static/README.md),
+[`data/`](../data/README.md),
 [`scripts/`](../scripts/README.md), [`tests/`](../tests/README.md).
 
 ## Diagrams
