@@ -93,20 +93,8 @@ service = TriageService()
 # ---------------------------------------------------------------------------
 @app.get("/", include_in_schema=False)
 def get_console() -> FileResponse:
-    """Triage: submit a ticket and read the decision."""
+    """The single page: submit a ticket, read the result, rate the response."""
     return FileResponse(STATIC_DIR / "index.html")
-
-
-@app.get("/performance", include_in_schema=False)
-def get_performance() -> FileResponse:
-    """Performance: classification quality, routing, and the pipeline.
-
-    A separate page rather than another panel on the ticket view, because it
-    answers a different question for a different reader - "is this system any
-    good?" rather than "what should happen to this ticket?" - and it is the
-    only place with more data than one ticket's slice.
-    """
-    return FileResponse(STATIC_DIR / "performance.html")
 
 
 # ---------------------------------------------------------------------------

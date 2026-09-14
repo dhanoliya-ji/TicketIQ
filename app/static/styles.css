@@ -1,5 +1,5 @@
 /* ===========================================================================
-   TicketIQ console — shared styles for both pages.
+   TicketIQ console — the single page.
 
    A plain, light interface: neutral greys, one accent, and colour used only
    where it carries meaning. Every meaning-bearing colour here clears WCAG AA
@@ -60,12 +60,6 @@ a { color: var(--accent); }
 
 .wrap { max-width: 860px; margin: 0 auto; padding-inline: 24px; }
 
-.visually-hidden {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
-}
-
 /* ---------------------------------------------------------------------------
    Masthead and navigation
    --------------------------------------------------------------------------- */
@@ -79,10 +73,10 @@ a { color: var(--accent); }
   flex-wrap: wrap;
   gap: 10px 28px;
   align-items: center;
-  padding-block: 15px 0;
+  padding-block: 15px;
 }
 
-.brand { display: flex; align-items: center; gap: 9px; margin-right: auto; }
+.brand { display: flex; align-items: center; gap: 9px; }
 
 .brand-mark {
   display: grid; place-items: center;
@@ -94,28 +88,10 @@ a { color: var(--accent); }
 }
 .brand-name { font-size: 15.5px; font-weight: 650; letter-spacing: -0.015em; }
 
-.nav { display: flex; gap: 22px; align-self: flex-end; }
-
-.nav a {
-  display: block;
-  padding-bottom: 12px;
-  margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
-  color: var(--ink-soft);
-  font-size: 14px;
-  text-decoration: none;
-}
-.nav a:hover { color: var(--ink); }
-.nav a[aria-current="page"] { color: var(--ink); font-weight: 550; border-bottom-color: var(--accent); }
-
 /* ---------------------------------------------------------------------------
    Page furniture
    --------------------------------------------------------------------------- */
 main { padding-block: 30px 56px; display: grid; gap: 22px; }
-
-.page-head { margin-bottom: 4px; }
-.page-title { font-size: 22px; letter-spacing: -0.02em; }
-.page-intro { color: var(--ink-soft); font-size: 14.5px; margin-top: 6px; max-width: 62ch; }
 
 .card {
   background: var(--surface);
@@ -125,7 +101,6 @@ main { padding-block: 30px 56px; display: grid; gap: 22px; }
 }
 
 .card-title { font-size: 16.5px; }
-.card-note { color: var(--ink-soft); font-size: 13.5px; margin-top: 5px; max-width: 66ch; }
 
 .card-head {
   display: flex; flex-wrap: wrap; gap: 6px 16px;
@@ -136,7 +111,6 @@ main { padding-block: 30px 56px; display: grid; gap: 22px; }
 .section { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
 .section:first-of-type { margin-top: 22px; }
 .section-title { font-size: 14px; }
-.section-note { color: var(--ink-muted); font-size: 13px; margin-top: 4px; max-width: 66ch; }
 
 /* ---------------------------------------------------------------------------
    Form
@@ -212,22 +186,6 @@ select { max-width: 260px; cursor: pointer; }
 .is-busy .spinner { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Example links */
-.examples { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 13.5px; }
-.examples-label { color: var(--ink-muted); }
-#examples { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-.example-separator { color: var(--line-strong); }
-
-.example-link {
-  padding: 0;
-  background: none; border: 0;
-  border-bottom: 1px solid var(--line-strong);
-  color: var(--accent);
-  font: inherit; font-size: 13.5px;
-  cursor: pointer;
-}
-.example-link:hover { border-bottom-color: var(--accent); }
-
 /* ---------------------------------------------------------------------------
    Alerts
    --------------------------------------------------------------------------- */
@@ -276,6 +234,13 @@ select { max-width: 260px; cursor: pointer; }
 .summary-item:last-child { border-right: 0; }
 .summary-item dt { color: var(--ink-muted); font-size: 12.5px; }
 .summary-item dd { margin: 4px 0 0; font-size: 15.5px; font-weight: 600; }
+.summary-item dd#out-config { font-family: var(--mono); font-size: 13px; }
+.summary-sub {
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
 
 .tag {
   display: inline-block;
@@ -410,129 +375,6 @@ select { max-width: 260px; cursor: pointer; }
 
 .cell-good     { color: var(--good); }
 .cell-critical { color: var(--critical); }
-.cell-muted    { color: var(--ink-muted); }
-
-.pill {
-  display: inline-block;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-family: var(--font);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-/* ---------------------------------------------------------------------------
-   Statistics row
-   --------------------------------------------------------------------------- */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: 0;
-  margin-top: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.stat { padding: 14px 16px; background: var(--surface-alt); border-right: 1px solid var(--line); }
-.stat:last-child { border-right: 0; }
-.stat-label { color: var(--ink-muted); font-size: 12.5px; }
-.stat-value {
-  font-size: 24px; font-weight: 650; margin-top: 2px;
-  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
-}
-.stat-note { color: var(--ink-muted); font-size: 12px; margin-top: 1px; }
-
-/* ---------------------------------------------------------------------------
-   Reward bars — magnitude from a zero baseline, sign by colour AND by the
-   printed number, so colour is never the only signal.
-   --------------------------------------------------------------------------- */
-.bar-cell { width: 190px; padding-right: 4px !important; }
-
-.bar-track {
-  position: relative;
-  height: 16px;
-  background: var(--surface-alt);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.bar-zero {
-  position: absolute; top: 0; bottom: 0;
-  width: 1px;
-  background: var(--line-strong);
-}
-.bar-fill {
-  position: absolute; top: 3px; bottom: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.bar-fill[data-sign="negative"] { background: var(--critical); }
-
-/* ---------------------------------------------------------------------------
-   Confusion matrix
-   --------------------------------------------------------------------------- */
-.matrix { border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-.matrix th, .matrix td {
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.matrix th { color: var(--ink-muted); font-size: 12px; font-weight: 600; background: var(--surface-alt); }
-.matrix th[scope="row"] { text-align: left; font-family: var(--mono); font-size: 12px; }
-.matrix td[data-diagonal="true"] { background: var(--accent-wash); font-weight: 650; }
-.matrix td[data-miss="true"] { color: var(--critical); font-weight: 600; }
-
-/* ---------------------------------------------------------------------------
-   Pipeline diagram
-   --------------------------------------------------------------------------- */
-.pipeline { display: grid; gap: 7px; margin-top: 14px; }
-
-.pipeline-level {
-  display: grid;
-  gap: 7px;
-  position: relative;
-}
-.pipeline-level[data-parallel="true"] {
-  grid-template-columns: 1fr 1fr;
-  padding: 15px 12px 12px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
-}
-
-.pipeline-tag {
-  position: absolute; top: -9px; left: 13px;
-  padding: 0 8px;
-  background: var(--surface);
-  color: var(--ink-muted);
-  font-size: 11px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.pipeline-stage {
-  display: flex; align-items: baseline; gap: 10px;
-  padding: 10px 13px;
-  background: var(--surface-alt);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--accent);
-  border-radius: var(--radius-sm);
-}
-.pipeline-name { font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
-.pipeline-desc { color: var(--ink-muted); font-size: 12.5px; }
-.pipeline-arrow { color: var(--line-strong); text-align: center; font-size: 12px; line-height: 1; }
-
-/* ---------------------------------------------------------------------------
-   Empty states and loading
-   --------------------------------------------------------------------------- */
-.empty {
-  padding: 22px 4px;
-  color: var(--ink-muted);
-  font-size: 13.5px;
-}
-.empty strong { color: var(--ink-soft); font-weight: 550; }
 
 /* ---------------------------------------------------------------------------
    Footer
@@ -552,9 +394,6 @@ select { max-width: 260px; cursor: pointer; }
   .wrap { padding-inline: 18px; }
   .card { padding: 20px 18px; }
   .summary-item { border-right: 0; border-bottom: 1px solid var(--line); }
-  .stat { border-right: 0; border-bottom: 1px solid var(--line); }
-  .pipeline-level[data-parallel="true"] { grid-template-columns: 1fr; }
-  .bar-cell { width: 110px; }
   .table th, .table td { padding: 8px 8px; }
 }
 

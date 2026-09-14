@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Triage · TicketIQ</title>
+  <title>TicketIQ</title>
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23256abf'/><text x='16' y='23' font-size='19' font-family='system-ui' font-weight='600' fill='white' text-anchor='middle'>T</text></svg>" />
 </head>
@@ -15,38 +15,27 @@
       <span class="brand-mark" aria-hidden="true">T</span>
       <span class="brand-name">TicketIQ</span>
     </div>
-    <nav class="nav" aria-label="Sections">
-      <a href="/" aria-current="page">Triage</a>
-      <a href="/performance">Performance</a>
-    </nav>
   </div>
 </header>
 
 <main class="wrap">
 
-  <div class="page-head">
-    <h1 class="page-title">Triage a ticket</h1>
-    <p class="page-intro">
-      The ticket is classified, its sentiment scored per aspect, the relevant
-      policy retrieved, and an action decided — then a reply is drafted for you
-      to approve.
-    </p>
-  </div>
-
   <!-- ------------------------------------------------------------------
-       The ticket
+       The ticket. Free text: subject, body, customer tier — the three
+       things POST /ticket accepts, and nothing else.
        ------------------------------------------------------------------ -->
   <section class="card">
+    <h1 class="card-title">New ticket</h1>
+
     <form id="ticket-form" autocomplete="off" novalidate>
-      <div class="field" style="margin-top: 0">
+      <div class="field">
         <label class="label" for="subject">Subject</label>
-        <input type="text" id="subject" maxlength="300" placeholder="Charged twice on order 4471" />
+        <input type="text" id="subject" maxlength="300" />
       </div>
 
       <div class="field">
-        <label class="label" for="body">Description</label>
-        <textarea id="body" rows="5" maxlength="5000"
-                  placeholder="What is the customer reporting?"></textarea>
+        <label class="label" for="body">Body</label>
+        <textarea id="body" rows="6" maxlength="5000"></textarea>
       </div>
 
       <div class="field">
@@ -61,12 +50,8 @@
       <div class="form-actions">
         <button type="submit" class="button button-primary" id="submit-button">
           <span class="spinner" aria-hidden="true"></span>
-          <span id="submit-label">Triage ticket</span>
+          <span id="submit-label">Submit ticket</span>
         </button>
-        <div class="examples">
-          <span class="examples-label">Try:</span>
-          <span id="examples"></span>
-        </div>
       </div>
 
       <p class="alert" id="form-error" hidden role="alert"></p>
@@ -74,7 +59,7 @@
   </section>
 
   <!-- ------------------------------------------------------------------
-       The result
+       Everything POST /ticket returns.
        ------------------------------------------------------------------ -->
   <section class="card" id="result" hidden>
     <div class="card-head">
@@ -96,44 +81,50 @@
         <dd><span class="tag" id="out-action">—</span></dd>
       </div>
       <div class="summary-item">
-        <dt>Handled in</dt>
+        <dt>Configuration</dt>
+        <dd id="out-config">—</dd>
+        <p class="summary-sub" id="out-config-detail"></p>
+      </div>
+      <div class="summary-item">
+        <dt>Latency</dt>
         <dd id="out-latency">—</dd>
       </div>
     </dl>
 
     <div class="section">
-      <h3 class="section-title">Suggested reply</h3>
+      <h3 class="section-title">Response</h3>
       <div class="reply" id="out-reply"></div>
 
       <div class="feedback" id="feedback">
-        <span class="feedback-question">Was this reply helpful?</span>
+        <span class="feedback-question">Was this response helpful?</span>
         <button type="button" class="button" id="fb-yes">Yes</button>
         <button type="button" class="button" id="fb-no">No</button>
         <p class="feedback-note" id="feedback-note" hidden></p>
       </div>
     </div>
 
-    <!-- Supporting evidence: available, but not in the way. -->
     <details class="details" id="details-analysis">
-      <summary>Analysis <span class="summary-hint" id="hint-analysis"></span></summary>
+      <summary>Aspect sentiment and retrieved knowledge
+        <span class="summary-hint" id="hint-analysis"></span></summary>
       <div class="details-body">
-        <h4 class="detail-title">Sentiment by aspect</h4>
+        <h4 class="detail-title">Aspect sentiment</h4>
         <ul class="stack" id="out-aspects"></ul>
 
-        <h4 class="detail-title">Knowledge base sections used</h4>
+        <h4 class="detail-title">Retrieved knowledge</h4>
         <ul class="stack" id="out-sources"></ul>
       </div>
     </details>
 
     <details class="details" id="details-reasoning">
-      <summary>Agent reasoning <span class="summary-hint" id="hint-reasoning"></span></summary>
+      <summary>Reasoning trace and tool calls
+        <span class="summary-hint" id="hint-reasoning"></span></summary>
       <div class="details-body">
         <ol class="trace" id="out-trace"></ol>
       </div>
     </details>
 
     <details class="details" id="details-processing">
-      <summary>Processing steps <span class="summary-hint" id="hint-processing"></span></summary>
+      <summary>Pipeline stages <span class="summary-hint" id="hint-processing"></span></summary>
       <div class="details-body">
         <div class="scroll-x">
           <table class="table" id="out-stages">

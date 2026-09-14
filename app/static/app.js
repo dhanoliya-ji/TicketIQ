@@ -3,51 +3,15 @@
 
    Plain browser JavaScript, no framework and no build step. It talks to the
    same FastAPI service that serves this page, so every value shown comes from
-   a real API call.
+   a real API call and nothing is computed here.
 
-   The page deliberately shows the reply first and keeps the supporting
-   evidence - sentiment, sources, reasoning, timings, routing - in collapsed
-   sections, so the common case is a short page and the detail is one click
-   away when someone asks "why did it say that?".
+   The page is exactly the three endpoints the assignment specifies: POST
+   /ticket takes a free-text subject, body and customer tier; the result shows
+   everything that endpoint returns; GET /ticket/{id}/status supplies the stage
+   table; POST /feedback records the rating.
    =========================================================================== */
 
 "use strict";
-
-/* ---------------------------------------------------------------------------
-   Examples. These exist so a demo does not start with typing.
-   --------------------------------------------------------------------------- */
-var EXAMPLES = [
-  {
-    label: "Duplicate charge",
-    subject: "Charged twice on order 4471",
-    body:
-      "My credit card was charged twice for the same monthly invoice. I want a " +
-      "refund and nobody has replied for days.",
-    tier: "enterprise",
-  },
-  {
-    label: "Outage",
-    subject: "Total outage, dashboard is down",
-    body:
-      "Every API call returns a 500 error and the whole platform is unusable. " +
-      "Our team is completely blocked.",
-    tier: "enterprise",
-  },
-  {
-    label: "Login problem",
-    subject: "Cannot log in to my account",
-    body:
-      "The password reset email never arrives for customer 3391 and I am locked " +
-      "out of the workspace.",
-    tier: "pro",
-  },
-  {
-    label: "Feature request",
-    subject: "Please add dark mode",
-    body: "It would be great if the product supported a dark theme for night work.",
-    tier: "free",
-  },
-];
 
 // The ticket currently on screen.
 var current = null;
@@ -163,7 +127,7 @@ function setBusy(busy) {
   var button = byId("submit-button");
   button.disabled = busy;
   button.classList.toggle("is-busy", busy);
-  byId("submit-label").textContent = busy ? "Working…" : "Triage ticket";
+  byId("submit-label").textContent = busy ? "Working…" : "Submit ticket";
 }
 
 /* Show an error. When the pipeline failed part way, the service gives back the
@@ -272,6 +236,13 @@ function render(result) {
   var escalated = result.action === "escalate_to_human";
   action.textContent = escalated ? "Escalate to human" : "Answer sent";
   action.dataset.level = escalated ? "escalate" : "answer";
+
+  // The assignment asks for the configuration used, named as
+  // model / prompt variant / RAG top-K.
+  var config = result.pipeline_config;
+  byId("out-config").textContent = config.prompt_variant;
+  byId("out-config-detail").textContent =
+    config.model + " · top-K " + config.rag_top_k;
 
   byId("out-reply").textContent = result.response_text;
 
@@ -421,19 +392,15 @@ async function sendFeedback(score) {
     });
 
     clear(note);
-    note.appendChild(document.createTextNode("Thank you. That scored "));
+    note.appendChild(document.createTextNode("Recorded. Reward "));
     note.appendChild(make("strong", null, response.reward.toFixed(2)));
     note.appendChild(
       document.createTextNode(
-        " for this routing choice — feedback × 10 minus the " +
-          response.latency_seconds.toFixed(2) + "s it took. The preferred setup for " +
-          "tickets like this is now " + response.best_config_for_state + ". "
+        " — feedback × 10 minus the " +
+          response.latency_seconds.toFixed(2) + "s it took. The best configuration " +
+          "for this kind of ticket is now " + response.best_config_for_state + "."
       )
     );
-    var link = make("a", null, "See routing performance");
-    link.href = "/performance";
-    note.appendChild(link);
-    note.appendChild(document.createTextNode("."));
     note.hidden = false;
   } catch (error) {
     note.textContent = error.message;
@@ -444,30 +411,7 @@ async function sendFeedback(score) {
 /* ---------------------------------------------------------------------------
    Start-up
    --------------------------------------------------------------------------- */
-function buildExamples() {
-  var container = byId("examples");
-
-  EXAMPLES.forEach(function (example, index) {
-    if (index > 0) {
-      // A visible separator: without it the underlined labels run together.
-      container.appendChild(make("span", "example-separator", "·"));
-    }
-
-    var button = make("button", "example-link", example.label);
-    button.type = "button";
-    button.addEventListener("click", function () {
-      byId("subject").value = example.subject;
-      byId("body").value = example.body;
-      byId("tier").value = example.tier;
-      showError(null);
-    });
-    container.appendChild(button);
-  });
-}
-
 function start() {
-  buildExamples();
-
   byId("ticket-form").addEventListener("submit", submitTicket);
   byId("fb-yes").addEventListener("click", function () {
     sendFeedback(1);
@@ -476,11 +420,6 @@ function start() {
     sendFeedback(0);
   });
 
-
-  // Start on the first example so the page is one click from a result.
-  byId("subject").value = EXAMPLES[0].subject;
-  byId("body").value = EXAMPLES[0].body;
-  byId("tier").value = EXAMPLES[0].tier;
 }
 
 document.addEventListener("DOMContentLoaded", start);

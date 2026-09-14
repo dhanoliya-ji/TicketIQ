@@ -1,111 +1,104 @@
 # `app/static/` — the console
 
-Two pages, served by the FastAPI application itself.
-
-| Page | URL | Answers |
-|------|-----|---------|
-| **Triage** | `/` | *What should happen to this ticket?* |
-| **Performance** | `/performance` | *Is this system any good?* |
+One page, served by the FastAPI application itself at
+**<http://localhost:8000/>**.
 
 | File | What it does |
 |------|--------------|
-| `index.html` | The triage page. |
-| `performance.html` | The performance page. |
-| `styles.css` | Shared styling for both. |
-| `app.js` | Triage behaviour. |
-| `performance.js` | Performance behaviour. |
+| `index.html` | The page. |
+| `styles.css` | All styling. |
+| `app.js` | API calls and rendering. |
 
 ## Why plain HTML, CSS and JavaScript
 
-No React, no bundler, no `npm install`, no new Python dependency. Static files
-served by the same FastAPI process, which means **same origin** (no CORS to get
-wrong) and **nothing to build** — clone, start uvicorn, open the page. The
-Dockerfile already copies `app/`, so the container serves it too.
+No React, no bundler, no `npm install`, no new Python dependency. Three static
+files served by the same FastAPI process, which means **same origin** (no CORS
+to get wrong) and **nothing to build** — clone, start uvicorn, open the page.
+The Dockerfile already copies `app/`, so the container serves it too.
 
-The brief asks for a back-end service, so this is an addition for operating and
-demonstrating the system, not a required deliverable.
+The brief asks for a back-end service. The page is an addition, and it is kept
+to exactly what the brief specifies the API accepts and returns.
 
-## Why two pages and not one
+## What is on it, and why each thing is there
 
-They answer different questions for different readers, and only one of them is
-about an individual ticket.
+**Input** — subject, body, customer tier. Those are the three fields
+`POST /ticket` accepts, and the brief calls the ticket *free text*, so the
+fields are plain and empty. There are no example or sample tickets: a menu of
+canned tickets would imply the endpoint only handles certain kinds, which is
+not true.
 
-The triage page is a **work surface**: someone has a ticket and needs a
-decision. It shows the suggested reply first and keeps the justification —
-sentiment, sources, reasoning, stage timings — in collapsed sections, opened
-when somebody asks *why did it say that?*
+**Result** — every field requirement 1 lists that `POST /ticket` returns:
 
-The performance page is an **assessment surface**: nothing on it belongs to one
-ticket. Classifier metrics are computed over a held-out split; routing rewards
-are aggregated across every rating for a whole *kind* of ticket; the pipeline
-graph is the same for all of them. Wedging that into the ticket view buried the
-most interesting part of the system inside a `<details>` element.
+| The brief's wording | On the page |
+|---|---|
+| predicted category | summary |
+| per-aspect sentiment scores | collapsed section |
+| the retrieved knowledge snippets | collapsed section |
+| the agent's chosen action | summary |
+| the final response text | the response block |
+| the pipeline configuration used (model / prompt variant / RAG top-K) | summary |
+| end-to-end latency | summary |
+| a unique transaction ID | beside the heading |
 
-## What is on each page, and what is deliberately absent
+Urgency is also shown: requirement 2 asks for it explicitly as a computed
+score, and the endpoint returns it. The reasoning trace and tool calls are
+shown because requirement 4 asks for them in the response.
 
-**Triage** — subject, description, customer tier, the four-value summary
-(category, urgency, action, handling time), the suggested reply, and the
-feedback buttons. Collapsed: analysis, agent reasoning, processing steps.
+**Pipeline stages** — from `GET /ticket/{id}/status`, which requirement 6 asks
+to reflect real workflow state.
 
-**Performance** — three cards, each backed by one endpoint:
+**Feedback** — `POST /feedback`, one binary rating per ticket.
 
-| Card | Endpoint | Shows |
-|------|----------|-------|
-| Classification quality | `/ml/report` | accuracy, precision, recall, F1, per-category table, confusion matrix |
-| Routing | `/rl/stats` | ratings, ticket types seen, explore/exploit, and average reward per configuration for a chosen ticket type |
-| Pipeline | `/workflow/graph` | the stages, in the order the engine derived, with the parallel level boxed |
+**Retry** — appears only when a stage actually fails. It is how requirement 6's
+"a failed stage can be re-run without repeating already-completed upstream
+stages" is usable rather than merely implemented.
 
-Deliberately **not** here: a request log, live-updating charts, system
-statistics, a synthetic-ticket simulator, and a ticket history. Each was either
-interesting to build and useless to the reader, or not something the brief asks
-the interface to show. `scripts/simulate_bandit.py` is where the learning
-experiment belongs.
+## What is deliberately not here
 
-No number on either page is computed in the browser. Everything is served by
-the API and rendered as it arrives, so the pages cannot drift from the service.
+A request log, live charts, system statistics, a synthetic-ticket simulator,
+ticket history, a service status indicator, and a second page for classifier
+metrics and bandit rewards.
+
+The last one was built and then removed. Everything on it is a deliverable of
+the *project* rather than of the *interface*, and each is already satisfied:
+the classifier report by `scripts/train_and_report.py` and `/ml/report`, the
+bandit evidence by `scripts/simulate_bandit.py` — requirement 5 asks for "a
+short experiment or simulation", not a screen — and pipeline inspection by
+`GET /ticket/{id}/status`. Those endpoints all still exist; they just do not
+get a page.
+
+No number on the page is computed in the browser. Everything is served by the
+API and rendered as it arrives, so the page cannot drift from the service.
 
 ## Design
 
-Neutral greys, one accent, and colour used only where it carries meaning.
+Neutral greys, one accent, and colour only where it carries meaning.
 **Every meaning-bearing colour clears WCAG AA (4.5:1) against the surface it
 sits on** — measured, not eyeballed. The first pass used `#2a78d6` for the
 accent and it came out at 4.42:1, so it was darkened to `#256abf` (5.2:1).
 
-Colour appears in four places, and in each the word or number is present too,
-so colour is never the only signal:
+Colour appears in three places, and in each the word is present too, so colour
+is never the only signal: urgency, the action, and sentiment polarity.
 
-- urgency — low / medium / high
-- the action — answer or escalate
-- sentiment polarity — positive / neutral / negative
-- reward bars — sign is shown by colour *and* by the printed number
-
-The reward bar is a magnitude from a zero baseline. Negative rewards are normal
-here, because reward subtracts latency and a local model takes longer than ten
-seconds, so the axis recentres whenever any value is below zero.
-
-Layout leans on whitespace and hairline rules rather than nested boxes, so the
-page reads as a document rather than a dashboard. The only motion is the submit
-spinner and a short fade when a result arrives; both are disabled under
-`prefers-reduced-motion: reduce`.
+Layout leans on whitespace and hairline rules rather than nested boxes. The
+only motion is the submit spinner and a short fade when a result arrives, both
+disabled under `prefers-reduced-motion: reduce`.
 
 ## Behaviour worth knowing
 
 - The previous result is **hidden the moment a new ticket is submitted**, so
   stale figures can never be mistaken for fresh ones.
 - Errors are rendered as a sentence, not a status code. A failed pipeline names
-  the stage that broke and offers a **retry** that re-runs only that stage.
-- The feedback buttons lock after one use, matching the API, which accepts one
-  rating per ticket.
+  the stage that broke and offers the retry.
+- The feedback buttons lock after one use, matching the API.
 - When a policy rule overrides the model's chosen action, the reasoning trace
   says so on the step it changed rather than hiding it.
-- The performance page loads its three cards independently, so one unavailable
-  endpoint degrades a single card instead of blanking the page. With no
-  feedback yet, the routing card explains what to do rather than showing an
-  empty table.
 
 ## Editing it
 
 No build step — edit a file and reload the browser. `uvicorn --reload` watches
 Python files; static files are read per request, so a plain refresh is enough.
-Run `node --check app/static/app.js` after editing the JavaScript; a syntax
-error there is otherwise silent until the page fails to render.
+
+Run `node --check app/static/app.js` after editing the JavaScript. A syntax
+error there is otherwise silent: the page renders and simply does nothing, which
+has already happened once.

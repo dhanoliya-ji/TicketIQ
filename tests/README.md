@@ -22,7 +22,7 @@ pytest -k "bandit and converge"               # one test by name
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, concurrent transactions, state store, schema self-healing | 28 |
 | `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, repeated tool calls and giving up on them, the escalation policy on all three paths, the step limit | 35 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
-| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, both console pages | 35 |
+| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console page | 35 |
 | `test_end_to_end.py` | the full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection, a deleted database | 18 |
 
 ## How the suite stays offline

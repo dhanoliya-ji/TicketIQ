@@ -18,7 +18,7 @@ rather than one monolithic function.
 | **Tests** | 240 passing, **99%** coverage of `app/` |
 | **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
-| **Console** | Two pages at `/` and `/performance`, served by the same app — no build step, no new dependency |
+| **Console** | A single page at `/`, served by the same app — no build step, no new dependency |
 | **Stack** | FastAPI · Pydantic · FAISS · scikit-learn · numpy · VADER · SQLite · pytest · black · ruff · mypy · Docker · GitHub Actions |
 
 ---
@@ -127,8 +127,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Then open **<http://localhost:8000/>** to triage a ticket, and
-**<http://localhost:8000/performance>** to see how well the system is doing.
+Then open **<http://localhost:8000/>** to submit a ticket.
 <http://localhost:8000/docs> is the interactive API documentation.
 
 From the command line:
@@ -172,56 +171,34 @@ python data/generate_tickets.py        # regenerate the labelled dataset
 
 ## The console
 
-Two pages, served by the same FastAPI process from `app/static/` — same origin,
-no CORS setup, no `npm install`, no build step, no extra Python dependency.
-Full notes in [app/static/README.md](app/static/README.md).
+**<http://localhost:8000/>** — one page, three static files in `app/static/`,
+served by the same FastAPI process. Same origin, no CORS setup, no
+`npm install`, no build step, no extra Python dependency. Full notes in
+[app/static/README.md](app/static/README.md).
 
-| Page | URL | Answers |
-|------|-----|---------|
-| **Triage** | <http://localhost:8000/> | *What should happen to this ticket?* |
-| **Performance** | <http://localhost:8000/performance> | *Is this system any good?* |
+The page is kept to exactly what the brief specifies the API accepts and
+returns. The ticket is **free text**: a subject, a body and a customer tier,
+with no sample or canned tickets, because a menu of them would imply the
+endpoint only handles certain kinds.
 
-They are separate because only one of them is about an individual ticket.
+| Always visible | Collapsed |
+|----------------|-----------|
+| Subject, body, customer tier | **Aspect sentiment and retrieved knowledge** |
+| Category · urgency · action · configuration used · latency · transaction id | **Reasoning trace and tool calls** |
+| The response text | **Pipeline stages**, from `GET /ticket/{id}/status` |
+| Was this response helpful? | |
 
-**Triage** is a work surface. The suggested reply is the biggest thing on it;
-the justification sits in collapsed sections, opened when someone asks *why did
-it say that?*
+A retry button appears only when a stage actually fails — that is how
+requirement 6's "re-run without repeating completed upstream stages" becomes
+usable rather than merely implemented.
 
-| Always visible | Collapsed, one click away |
-|----------------|---------------------------|
-| Subject, description, customer tier | **Analysis** — sentiment per aspect, and the knowledge base sections quoted |
-| Category, urgency, action, handling time | **Agent reasoning** — each step, any tool result, and any policy override |
-| The suggested reply | **Processing steps** — the seven stages and their real durations |
-| Was this helpful? | |
-
-**Performance** is an assessment surface — nothing on it belongs to one ticket:
-
-| Card | Backed by | Shows |
-|------|-----------|-------|
-| Classification quality | `/ml/report` | accuracy, precision, recall, F1, per-category table, confusion matrix |
-| Routing | `/rl/stats` | ratings received, ticket types seen, explore/exploit, and average reward per configuration for a chosen ticket type |
-| Pipeline | `/workflow/graph` | the stages in the order the engine derived, with the parallel level boxed |
-
-Colour is used in four places only — urgency, the action, sentiment polarity and
-the sign of a reward — and each shows its word or number too, so colour is never
-the only signal. Every meaning-bearing colour clears WCAG AA against the surface
-it sits on; that was measured, and the first accent failed at 4.42:1 and was
-darkened.
-
-### Suggested demo
-
-The four example links fill the form for you, and each takes a different path
-through the system:
-
-| Example | What it shows |
-|---------|---------------|
-| **Outage** | Enterprise + high urgency + technical → the agent **escalates to a human** |
-| **Feature request** | Same pipeline, but the agent **answers** — and if the model tries to escalate, the policy override is shown in the reasoning trace |
-| **Login problem** | The agent calls `check_account_status` before answering |
-| **Duplicate charge** | The agent calls `check_refund_eligibility` before promising any money |
-
-Rate a couple of replies, then open **Performance** to see the reward
-(`feedback × 10 − latency`) land against the configuration that produced it.
+**Deliberately not on it:** a request log, live charts, system statistics, a
+ticket history, a status indicator, and a second page for classifier metrics
+and bandit rewards. That second page was built and then removed: everything on
+it is a deliverable of the project rather than of the interface, and each is
+already satisfied by `scripts/train_and_report.py`, `scripts/simulate_bandit.py`
+and `GET /ticket/{id}/status`. Requirement 5 asks for "a short experiment or
+simulation", not a screen.
 
 ---
 
@@ -715,7 +692,7 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, concurrent transactions, state store | 28 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, repeated tool calls and giving up on them, the escalation policy on all three paths, step limit | 35 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
-| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, both console pages | 35 |
+| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console page | 35 |
 | `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection | 18 |
 
 **Coverage: 99% of `app/`** — 100% on the bandit, the DAG engine, the
@@ -768,7 +745,7 @@ TicketIQ/
 │   ├── agent/                  # ReAct loop and the mock tools
 │   ├── rl/                     # contextual bandit, state and reward
 │   ├── workflow/               # DAG engine, SQLite state store, the triage pipeline
-│   └── static/                 # the two console pages (plain HTML, CSS, JavaScript)
+│   └── static/                 # the console page (plain HTML, CSS, JavaScript)
 ├── data/
 │   ├── generate_tickets.py     # deterministic dataset generator
 │   ├── tickets.json            # 160 labelled synthetic tickets

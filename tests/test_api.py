@@ -336,41 +336,47 @@ def test_the_console_page_is_served_at_the_root(client):
     assert "TicketIQ" in response.text
 
 
-def test_the_performance_page_is_served(client):
-    response = client.get("/performance")
-
-    assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
-    assert "Performance" in response.text
-
-
-def test_both_pages_link_to_each_other(client):
-    """The two pages are only usable as a pair if the nav actually connects."""
-    triage = client.get("/").text
-    performance = client.get("/performance").text
-
-    assert 'href="/performance"' in triage
-    assert 'href="/"' in performance
-    # Each marks itself as the current page, for screen readers and styling.
-    assert 'href="/" aria-current="page"' in triage
-    assert 'href="/performance" aria-current="page"' in performance
-
-
 def test_the_console_assets_are_served(client):
-    for path in ["/static/styles.css", "/static/app.js", "/static/performance.js"]:
+    for path in ["/static/styles.css", "/static/app.js"]:
         response = client.get(path)
         assert response.status_code == 200, path
         # A page is useless if its script is empty, so check for real content.
         assert len(response.text) > 1000, path
 
 
-def test_the_performance_page_reads_only_endpoints_that_exist(client):
-    """The page fetches three endpoints; none may 404."""
-    script = client.get("/static/performance.js").text
+def test_the_console_shows_every_field_the_brief_requires(client):
+    """Requirement 1 lists what POST /ticket returns; the page must show it.
 
-    for path in ["/ml/report", "/rl/stats", "/workflow/graph"]:
-        assert path in script, path
-        assert client.get(path).status_code == 200, path
+    The configuration was once dropped from the page by accident when a section
+    moved, so this checks the markup has a home for each of the eight.
+    """
+    page = client.get("/").text + client.get("/static/app.js").text
+
+    required = [
+        ("predicted category", "out-category"),
+        ("per-aspect sentiment", "out-aspects"),
+        ("retrieved knowledge snippets", "out-sources"),
+        ("chosen action", "out-action"),
+        ("final response text", "out-reply"),
+        ("pipeline configuration", "pipeline_config"),
+        ("end-to-end latency", "out-latency"),
+        ("transaction id", "result-ref"),
+    ]
+    for label, marker in required:
+        assert marker in page, label
+
+
+def test_the_console_offers_no_canned_tickets(client):
+    """POST /ticket takes any free text, so the page must not imply a menu."""
+    page = client.get("/").text + client.get("/static/app.js").text
+
+    assert "example-link" not in page
+    assert "EXAMPLES" not in page
+
+
+def test_there_is_only_one_page(client):
+    assert client.get("/performance").status_code == 404
+    assert client.get("/static/performance.js").status_code == 404
 
 
 def test_the_console_does_not_shadow_the_api(client):
