@@ -129,6 +129,9 @@ uvicorn app.main:app --reload
 
 Then open **<http://localhost:8000/>** to submit a ticket.
 <http://localhost:8000/docs> is the interactive API documentation.
+To stop it, press Ctrl+C in that terminal — see
+[Starting and stopping the service](#starting-and-stopping-the-service) for
+the rest.
 
 From the command line:
 
@@ -145,18 +148,78 @@ Nothing needs to be trained or downloaded first: the classifier trains at
 startup from `data/tickets.json` (milliseconds) and the knowledge base is
 indexed in memory.
 
+### Starting and stopping the service
+
+**Start it** — from the repository root, with the virtual environment active:
+
+```bash
+uvicorn app.main:app --reload                      # development, reloads on edit
+uvicorn app.main:app --host 0.0.0.0 --port 8000    # reachable from other machines
+```
+
+`--reload` watches the Python files. The three files in `app/static/` are read
+fresh on every request, so editing the console needs only a browser refresh.
+
+**Stop it** — press **Ctrl+C** in the terminal running it. That is the normal
+way, and uvicorn shuts down cleanly: the SQLite state store is committed after
+every stage, so nothing is lost mid-ticket.
+
+If the terminal is gone — it was started in the background, or the window was
+closed — stop it by the port it holds:
+
+```powershell
+# Windows PowerShell
+Get-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess
+```
+
+```bash
+# macOS and Linux
+lsof -ti:8000            # show the process holding the port
+kill $(lsof -ti:8000)    # ask it to stop; add -9 only if it will not
+```
+
+Check which state it is in either way:
+
+```bash
+curl http://localhost:8000/health     # answers when up, connection refused when down
+```
+
+**`Address already in use` on startup** means a previous run is still holding
+the port. Stop it with the commands above, or start the new one on another
+port with `--port 8001`.
+
+**Starting fresh.** Everything the service learns lives in `var/` — the bandit
+statistics and the per-ticket workflow history. Deleting it resets the service
+to a cold start, which is worth doing before a demo so the bandit is not part
+way through exploring:
+
+```bash
+# with the service stopped
+rm -rf var        # Windows PowerShell: Remove-Item -Recurse -Force var
+```
+
+Delete it only while the service is stopped. The schema is recreated on the
+next connection, so a running process survives it, but any ticket in flight
+loses its history.
+
 ### With Docker
 
 ```bash
 docker build -t ticketiq .
-docker run --rm -p 8000:8000 ticketiq
+docker run --rm -d --name ticketiq -p 8000:8000 ticketiq   # start (detached)
+docker logs -f ticketiq                                    # follow the log
+docker stop ticketiq                                       # stop
 ```
+
+Drop `-d` to run it in the foreground, where Ctrl+C stops it. `--rm` removes
+the container on exit, so `docker stop` is all the cleanup needed.
 
 To keep the learned bandit statistics and workflow history between runs, mount
 the runtime folder:
 
 ```bash
-docker run --rm -p 8000:8000 -v "$(pwd)/var:/service/var" ticketiq
+docker run --rm -d --name ticketiq -p 8000:8000 -v "$(pwd)/var:/service/var" ticketiq
 ```
 
 ### Run the experiments
