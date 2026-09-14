@@ -74,14 +74,21 @@ class Settings:
         self.llm_backend: str = _env_str("TICKETIQ_LLM_BACKEND", "auto").lower()
         self.ollama_base_url: str = _env_str("TICKETIQ_OLLAMA_URL", "http://localhost:11434")
         # The two models the RL layer can choose between when Ollama is used.
+        # Model A serves the concise variant, model B the step-by-step one.
         #
         # These defaults are small on purpose: together they are about 2.3 GB,
         # so following the README takes minutes rather than an hour, and both
-        # are from families the brief names (Llama 3 and Qwen). Point them at
+        # are from families the brief names (Qwen and Llama 3). Point them at
         # anything Ollama serves - "llama3", "mistral", "qwen2.5:7b" - with the
         # environment variables; nothing else in the code needs to change.
-        self.ollama_model_a: str = _env_str("TICKETIQ_OLLAMA_MODEL_A", "llama3.2:1b")
-        self.ollama_model_b: str = _env_str("TICKETIQ_OLLAMA_MODEL_B", "qwen2.5:1.5b")
+        #
+        # Which model serves which variant was measured, not guessed. Asked to
+        # produce numbered next steps, llama3.2:1b complied in 3 runs out of 3
+        # and qwen2.5:1.5b in 0 out of 3, so the step-by-step variant gets the
+        # model that can actually follow it. Both handle the concise variant
+        # equally well, so qwen takes that one.
+        self.ollama_model_a: str = _env_str("TICKETIQ_OLLAMA_MODEL_A", "qwen2.5:1.5b")
+        self.ollama_model_b: str = _env_str("TICKETIQ_OLLAMA_MODEL_B", "llama3.2:1b")
         # Generous, because a local model's *first* request also pays for
         # loading several gigabytes of weights into memory. 30 seconds was not
         # enough for that and produced a spurious fall back to the template

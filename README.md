@@ -52,7 +52,7 @@ rather than one monolithic function.
 | 2 | Urgency from category + sentiment + tier | [urgency.py](app/ml/urgency.py) | ✅ |
 | 3 | 4–6 markdown knowledge base documents | [data/knowledge_base/](data/knowledge_base/) — 5 documents, 28 chunks | ✅ |
 | 3 | Vector store, chunk + embed + top-K | [vector_store.py](app/rag/vector_store.py) — **FAISS** `IndexFlatIP` over TF-IDF vectors | ✅ |
-| 3 | Two distinct LLM configurations | [configs.py](app/llm/configs.py) — two prompt variants, each on its own Ollama model | ✅ verified end to end against a live Ollama (`llama3.2:1b` + `qwen2.5:1.5b`) |
+| 3 | Two distinct LLM configurations | [configs.py](app/llm/configs.py) — two prompt variants, each on its own Ollama model, 4 bandit arms with top-K | ✅ verified against live models: all four arms produce distinct replies, and holding the model fixed while swapping only the prompt changes output 319 → 816 chars |
 | 4 | ReAct loop choosing answer / tool / escalate | [react_agent.py](app/agent/react_agent.py) | ✅ |
 | 4 | Mock `check_account_status` and `check_refund_eligibility` | [tools.py](app/agent/tools.py) | ✅ |
 | 4 | Decision, tool calls and trace in the response **and in logs** | returned by `POST /ticket`; logged by the `ticketiq.agent` logger | ✅ |
@@ -293,7 +293,7 @@ curl -X POST http://localhost:8000/ticket \
      "summary": "order 4471 is eligible for a refund of 79.0 (duplicate charge, refundable regardless of age)"}
   ],
   "pipeline_config": {"name": "concise_policy|k2", "prompt_variant": "concise_policy",
-                      "rag_top_k": 2, "model": "llama3"},
+                      "rag_top_k": 2, "model": "qwen2.5:1.5b"},
   "config_selection_reason": "cold_start",
   "rl_state_key": "billing|medium|enterprise",
   "llm_backend": "template",
@@ -429,8 +429,17 @@ distinct prompt variants, **each mapped to its own model**:
 
 | Variant | System instruction | Model |
 |---------|--------------------|-------|
-| `concise_policy` | at most four sentences, quote the exact policy rule, no pleasantries | `llama3.2:1b` |
-| `empathetic_stepwise` | acknowledge impact, numbered next steps, say who owns it | `qwen2.5:1.5b` |
+| `concise_policy` | at most four sentences, quote the exact policy rule, no pleasantries | `qwen2.5:1.5b` |
+| `empathetic_stepwise` | acknowledge impact, numbered next steps, say who owns it | `llama3.2:1b` |
+
+**Which model serves which variant was measured, not guessed.** Asked to produce
+numbered next steps, `llama3.2:1b` complied in 3 runs out of 3 and
+`qwen2.5:1.5b` in 0 out of 3 — it quietly ignored the instruction. So the
+step-by-step variant gets the model that can actually follow it. Both handle
+the concise variant equally well, so Qwen takes that one. Holding the model
+fixed and varying only the system prompt changes the output substantially
+(319 → 816 characters on Llama), which is what makes these two genuinely
+distinct configurations rather than two labels.
 
 Combined with RAG top-K of 2 or 5, that is the bandit's four-arm action space.
 
@@ -438,8 +447,8 @@ Combined with RAG top-K of 2 or 5, that is the bandit's four-arm action space.
 
 ```bash
 ollama serve                    # in its own terminal
-ollama pull llama3.2:1b         # 1.3 GB
-ollama pull qwen2.5:1.5b        # 1.0 GB
+ollama pull qwen2.5:1.5b        # 1.0 GB — serves concise_policy
+ollama pull llama3.2:1b         # 1.3 GB — serves empathetic_stepwise
 uvicorn app.main:app            # TICKETIQ_LLM_BACKEND defaults to "auto"
 ```
 
@@ -726,8 +735,8 @@ All settings are environment variables with working defaults
 |----------|---------|---------|
 | `TICKETIQ_LLM_BACKEND` | `auto` | `auto`, `ollama` or `template` |
 | `TICKETIQ_OLLAMA_URL` | `http://localhost:11434` | Ollama server |
-| `TICKETIQ_OLLAMA_MODEL_A` | `llama3.2:1b` | model for the concise variant |
-| `TICKETIQ_OLLAMA_MODEL_B` | `qwen2.5:1.5b` | model for the step-by-step variant |
+| `TICKETIQ_OLLAMA_MODEL_A` | `qwen2.5:1.5b` | model for the concise variant |
+| `TICKETIQ_OLLAMA_MODEL_B` | `llama3.2:1b` | model for the step-by-step variant |
 | `TICKETIQ_LLM_TIMEOUT` | `120.0` | seconds before falling back (a cold model load is slow) |
 | `TICKETIQ_BANDIT_EPSILON` | `0.15` | exploration rate |
 | `TICKETIQ_AGENT_MAX_STEPS` | `4` | hard stop for the ReAct loop |
