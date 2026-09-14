@@ -88,6 +88,42 @@ def test_real_feature_requests_are_still_recognised():
         assert "feature_availability" in find_aspects_in_sentence(sentence), sentence
 
 
+def test_ordinary_uses_of_sign_and_log_are_not_login_problems():
+    """Regression: the login aspect listed the bare words "log" and "sign".
+
+    Neither is a login word on its own. "The euro sign", "please sign the
+    agreement" and "the audit log" all reported a login problem, which sent a
+    billing or feature ticket to the wrong aspect. The real signal is the word
+    with its particle, so "sign in" and "log in" moved to ASPECT_PHRASES.
+    """
+    false_positives = [
+        "The currency column shows a question mark instead of the euro sign",
+        "Please sign the agreement and send it back to us",
+        "Would love an audit log of every change made to a record",
+        "I cannot access the report I exported yesterday",
+    ]
+    for sentence in false_positives:
+        assert "login" not in find_aspects_in_sentence(sentence), sentence
+
+
+def test_real_login_problems_are_still_recognised():
+    """Tightening the keywords must not lose the genuine cases.
+
+    The first three carry no single login word and are caught by the phrase
+    list; the rest still match a keyword.
+    """
+    real_problems = [
+        "I cannot sign in to my account from any browser",
+        "The app keeps logging me out after a few minutes",
+        "Nobody on the team can log in since this morning",
+        "My password reset email never arrives",
+        "Single sign on fails with an authentication error",
+        "I am locked out after too many attempts",
+    ]
+    for sentence in real_problems:
+        assert "login" in find_aspects_in_sentence(sentence), sentence
+
+
 def test_a_positive_and_a_negative_aspect_survive_in_one_ticket():
     """The headline property of per-aspect sentiment.
 

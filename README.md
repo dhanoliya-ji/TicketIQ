@@ -188,9 +188,16 @@ endpoint only handles certain kinds.
 | The response text | **Pipeline stages**, from `GET /ticket/{id}/status` |
 | Was this response helpful? | |
 
+Every conclusion is shown with the figure behind it — the category with the
+classifier's confidence, the urgency bucket with its score, each snippet with
+its cosine similarity — so nothing on the page reads as more certain than it
+is. The collapsed sections carry what each tool was called with and returned,
+and what each pipeline stage produced.
+
 A retry button appears only when a stage actually fails — that is how
 requirement 6's "re-run without repeating completed upstream stages" becomes
-usable rather than merely implemented.
+usable rather than merely implemented; afterwards the stages that were reused
+rather than recomputed are named under the stage table.
 
 **Deliberately not on it:** a request log, live charts, system statistics, a
 ticket history, a status indicator, and a second page for classifier metrics
@@ -500,6 +507,17 @@ for a tool call it has already made (the agent detects this and replays the
 earlier result instead of re-running the tool) and its prose sometimes
 describes an escalation when it chose to answer. Both improve markedly with
 `llama3`/`mistral`.
+
+They also, about once in ten tickets, emit a stop token immediately after the
+salutation and return a reply of exactly `Dear [Customer],`. This is a sampling
+fluke rather than anything the prompt causes — replaying the identical prompt
+eight times produced eight full replies — so it cannot be prompted away. The
+client therefore treats a write generation shorter than
+`MINIMUM_REPLY_CHARACTERS` as a failed generation and composes that one reply
+with the template backend, exactly as it already does when the Ollama call
+raises. Measured over ten live tickets afterwards: the guard fired once, and no
+customer reply came back under 80 characters. The decision call is exempt,
+because its whole answer is a small JSON object.
 
 ### Without Ollama
 

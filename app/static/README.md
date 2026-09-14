@@ -41,11 +41,29 @@ not true.
 | a unique transaction ID | beside the heading |
 
 Urgency is also shown: requirement 2 asks for it explicitly as a computed
-score, and the endpoint returns it. The reasoning trace and tool calls are
-shown because requirement 4 asks for them in the response.
+score, and the endpoint returns it.
+
+**The numbers behind the labels.** A conclusion on its own reads as certainty,
+so each one is shown with the figure it came from: the category with the
+classifier's confidence, the urgency bucket with the score it was banded from,
+and each retrieved snippet with the cosine similarity FAISS ranked it by —
+which is what makes "top-K" mean anything.
+
+**Reasoning trace and tool calls** — requirement 4 asks for the decision, the
+trace *and* the tool calls. The trace gives the thought and the one-line
+observation per step; the tool calls section gives what each tool was actually
+called with and every field it returned.
 
 **Pipeline stages** — from `GET /ticket/{id}/status`, which requirement 6 asks
-to reflect real workflow state.
+to reflect real workflow state. Each row carries the stage's own output,
+folded away, because a stage's output is what makes the pipeline inspectable
+rather than a row of ticks. Long outputs are cut short: the full reasoning
+trace, the retrieved chunks and the finished reply already have their own
+sections above, and repeating them whole turned the page into a log dump.
+
+After a retry, the stages that were **reused rather than recomputed** are named
+under the table. That is the visible half of requirement 6's "re-run a failed
+stage without repeating the upstream stages that already succeeded".
 
 **Feedback** — `POST /feedback`, one binary rating per ticket.
 

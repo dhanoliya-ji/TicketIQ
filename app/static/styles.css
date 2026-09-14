@@ -376,6 +376,45 @@ select { max-width: 260px; cursor: pointer; }
 .cell-good     { color: var(--good); }
 .cell-critical { color: var(--critical); }
 
+/* Name/value lines: what a tool was called with and returned, and what each
+   pipeline stage produced. Two columns so the names line up and the values
+   can be scanned down. */
+.pairs { margin-top: 8px; }
+.pairs-title {
+  color: var(--ink-muted);
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.03em; text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.pair {
+  display: grid;
+  grid-template-columns: minmax(90px, 170px) 1fr;
+  gap: 10px;
+  padding: 2px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pair-name  { color: var(--ink-muted); }
+.pair-value { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* The per-stage output, folded away so the stage table stays readable. */
+.output-cell { font-variant-numeric: normal; }
+.cell-details > summary {
+  cursor: pointer;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  list-style: none;
+}
+.cell-details > summary::-webkit-details-marker { display: none; }
+.cell-details > summary::before { content: "▸ "; }
+.cell-details[open] > summary::before { content: "▾ "; }
+.cell-details > summary:hover { color: var(--accent); }
+.cell-details .pairs { min-width: 260px; }
+
+@media (max-width: 560px) {
+  .pair { grid-template-columns: 1fr; gap: 0; }
+}
+
 /* ---------------------------------------------------------------------------
    Footer
    --------------------------------------------------------------------------- */

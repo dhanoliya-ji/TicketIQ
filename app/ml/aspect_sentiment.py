@@ -33,17 +33,27 @@ ASPECT_KEYWORDS: dict[str, list[str]] = {
         "renewal",
         "paid",
     ],
+    # Also deliberately narrow. An earlier version included the bare words
+    # "log" and "sign", which are not login words on their own: "the euro
+    # sign shows as a question mark", "please sign the agreement" and "the
+    # audit log is empty" all fired the login aspect. The real signal is the
+    # word with its particle ("sign in", "log in"), so those live in
+    # ASPECT_PHRASES below.
     "login": [
         "login",
-        "log",
-        "sign",
+        "logins",
+        "signin",
         "password",
+        "passwords",
         "authentication",
+        "authenticate",
         "locked",
+        "lockout",
         "credentials",
         "sso",
-        "access",
-        "signin",
+        "mfa",
+        "otp",
+        "2fa",
     ],
     "performance": [
         "slow",
@@ -130,6 +140,28 @@ ASPECT_PHRASES: dict[str, list[str]] = {
         "would love",
         "the ability to",
         "add support for",
+    ],
+    "login": [
+        "sign in",
+        "signed in",
+        "signing in",
+        "sign-in",
+        "log in",
+        "logged in",
+        "logging in",
+        "log-in",
+        "logged out",
+        "log out",
+        "sign out",
+        "signed out",
+        # "logging me out" puts the object between the two words, so the
+        # plain "log out" phrase does not match it.
+        "logging me out",
+        "logged me out",
+        "logs me out",
+        "signing me out",
+        "signed me out",
+        "signs me out",
     ],
     "support_response_time": [
         "response time",

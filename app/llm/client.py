@@ -22,6 +22,7 @@ the reward signal - stays meaningful offline.
 """
 
 import json
+import logging
 import time
 from typing import Any
 
@@ -29,9 +30,34 @@ import requests
 
 from app.settings import SETTINGS
 
+logger = logging.getLogger("ticketiq.llm")
+
 # The two things we ever ask a language model to do.
 TASK_DECIDE = "decide"  # choose the next agent step, answer as JSON
 TASK_WRITE = "write"  # write the customer facing reply
+
+# A customer reply shorter than this is not a reply. The small Ollama models
+# occasionally stop right after the salutation - one run in roughly ten came
+# back as exactly "Dear [Customer]," - and it is not reproducible from the
+# prompt, so it cannot be prompted away. Such a generation has failed, and the
+# client already knows how to handle a failed generation: use the template
+# backend for that one request. The decision task is exempt, because its whole
+# answer is a small JSON object and is legitimately short.
+MINIMUM_REPLY_CHARACTERS = 80
+
+
+def is_usable_generation(text: str, task: str) -> bool:
+    """Is this completion something we can actually send on?
+
+    Empty output is never usable. Beyond that, only a customer reply has a
+    length we can judge: see MINIMUM_REPLY_CHARACTERS above.
+    """
+    if text == "":
+        return False
+    if task == TASK_WRITE:
+        return len(text) >= MINIMUM_REPLY_CHARACTERS
+    return True
+
 
 BACKEND_OLLAMA = "ollama"
 BACKEND_TEMPLATE = "template"
@@ -310,9 +336,16 @@ class LlmClient:
         if self.active_backend == BACKEND_OLLAMA:
             try:
                 text = self.ollama.generate(request, model)
-                if text != "":
+                if is_usable_generation(text, request.task):
                     elapsed = time.perf_counter() - started_at
                     return LlmResponse(text, BACKEND_OLLAMA, model, elapsed)
+                logger.warning(
+                    "discarding a %s generation of %s characters from %s; "
+                    "writing the reply with the template backend instead",
+                    request.task,
+                    len(text),
+                    model,
+                )
             except (requests.RequestException, ValueError):
                 # Fall through to the template backend below.
                 pass

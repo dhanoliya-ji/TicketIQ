@@ -225,19 +225,73 @@ def test_a_trailing_slash_in_the_base_url_is_handled(monkeypatch):
 def test_the_client_uses_ollama_when_it_is_available(monkeypatch):
     monkeypatch.setattr(client_module.SETTINGS, "llm_backend", "auto")
     monkeypatch.setattr(client_module.requests, "get", lambda url, timeout: FakeResponse(200, {}))
+    # Long enough to be a real reply: the client discards a write generation
+    # that is too short to send to a customer.
+    reply = (
+        "Thank you for getting in touch. Your account is locked and "
+        "will unlock itself in 30 minutes."
+    )
     monkeypatch.setattr(
         client_module.requests,
         "post",
-        lambda url, json, timeout: FakeResponse(200, {"response": "model text"}),
+        lambda url, json, timeout: FakeResponse(200, {"response": reply}),
     )
 
     client = LlmClient()
     assert client.active_backend == BACKEND_OLLAMA
 
     response = client.generate(LlmRequest("s", "u", TASK_WRITE, WRITE_FACTS), "llama3")
-    assert response.text == "model text"
+    assert response.text == reply
     assert response.backend == BACKEND_OLLAMA
     assert response.latency_seconds >= 0.0
+
+
+def test_a_reply_that_is_only_a_salutation_falls_back_to_the_template(monkeypatch):
+    """Regression: about one ticket in ten came back as "Dear [Customer],".
+
+    The small Ollama models sometimes emit a stop token straight after the
+    salutation. It is a sampling fluke, not something the prompt causes - the
+    identical prompt replayed eight times produced eight full replies - so it
+    cannot be prompted away. The client treats it as a failed generation and
+    uses the template backend for that one request, which is what it already
+    does when the Ollama call raises.
+    """
+    monkeypatch.setattr(client_module.SETTINGS, "llm_backend", "auto")
+    monkeypatch.setattr(client_module.requests, "get", lambda url, timeout: FakeResponse(200, {}))
+    monkeypatch.setattr(
+        client_module.requests,
+        "post",
+        lambda url, json, timeout: FakeResponse(200, {"response": "Dear [Customer],"}),
+    )
+
+    client = LlmClient()
+    response = client.generate(LlmRequest("s", "u", TASK_WRITE, WRITE_FACTS), "llama3")
+
+    assert response.backend == BACKEND_TEMPLATE
+    assert len(response.text) >= client_module.MINIMUM_REPLY_CHARACTERS
+
+
+def test_a_short_decision_is_kept_because_it_is_json_not_prose(monkeypatch):
+    """The length rule must not touch the decision call.
+
+    A decision is a small JSON object and is legitimately far shorter than the
+    reply threshold.
+    """
+    decision = '{"thought": "clear", "action": "answer", "action_input": {}}'
+    monkeypatch.setattr(client_module.SETTINGS, "llm_backend", "auto")
+    monkeypatch.setattr(client_module.requests, "get", lambda url, timeout: FakeResponse(200, {}))
+    monkeypatch.setattr(
+        client_module.requests,
+        "post",
+        lambda url, json, timeout: FakeResponse(200, {"response": decision}),
+    )
+
+    client = LlmClient()
+    response = client.generate(LlmRequest("s", "u", TASK_DECIDE, {}), "llama3")
+
+    assert len(decision) < client_module.MINIMUM_REPLY_CHARACTERS
+    assert response.backend == BACKEND_OLLAMA
+    assert response.text == decision
 
 
 def test_auto_falls_back_to_the_template_backend_when_ollama_is_down(monkeypatch):

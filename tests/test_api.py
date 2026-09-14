@@ -366,6 +366,37 @@ def test_the_console_shows_every_field_the_brief_requires(client):
         assert marker in page, label
 
 
+def test_the_console_shows_the_numbers_behind_the_labels(client):
+    """Regression: the page showed conclusions without the figures behind them.
+
+    A category with no confidence, an urgency bucket with no score and a list
+    of snippets with no similarity all read as if the service were certain.
+    Each number is returned by the API and each is named by the brief, so each
+    is on the page.
+    """
+    page = client.get("/").text + client.get("/static/app.js").text
+
+    for field in ["category_confidence", "urgency_score", "snippet.score"]:
+        assert field in page, field
+
+
+def test_the_console_shows_tool_calls_and_stage_outputs(client):
+    """Requirement 4 asks for the tool calls, requirement 6 for stage state.
+
+    The tool calls section was named in the markup and counted in its heading
+    but never rendered, so the arguments a tool was called with and what it
+    returned were both invisible. The stage table likewise showed only ticks
+    and timings, never what a stage produced.
+    """
+    page = client.get("/").text + client.get("/static/app.js").text
+
+    assert "renderToolCalls" in page
+    assert "out-tools" in page
+    assert "call.arguments" in page
+    assert "call.output" in page
+    assert "stage.output" in page
+
+
 def test_the_console_offers_no_canned_tickets(client):
     """POST /ticket takes any free text, so the page must not imply a menu."""
     page = client.get("/").text + client.get("/static/app.js").text

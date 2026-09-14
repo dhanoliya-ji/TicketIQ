@@ -54,6 +54,54 @@ function seconds(value) {
   return Number(value).toFixed(2) + " s";
 }
 
+
+/* Render a small object as plain "name: value" lines. Used for the arguments
+   a tool was called with and for what a pipeline stage produced, both of
+   which are nested objects that the API returns as-is. */
+function describeValue(value) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+  if (Array.isArray(value)) {
+    var parts = [];
+    value.forEach(function (item) {
+      parts.push(describeValue(item));
+    });
+    return parts.join("; ");
+  }
+  if (typeof value === "object") {
+    var pairs = [];
+    Object.keys(value).forEach(function (key) {
+      pairs.push(titleCase(key) + " " + describeValue(value[key]));
+    });
+    return pairs.join(", ");
+  }
+  return String(value);
+}
+
+// A few stage outputs are long - the whole reasoning trace, every retrieved
+// chunk, the finished reply. They already have their own sections on this
+// page, so here we only need enough to see that the stage produced the right
+// thing, not the whole of it.
+var MAXIMUM_VALUE_CHARACTERS = 170;
+
+function shorten(text) {
+  if (text.length <= MAXIMUM_VALUE_CHARACTERS) {
+    return text;
+  }
+  return text.slice(0, MAXIMUM_VALUE_CHARACTERS).trimEnd() + "…";
+}
+
+function appendPairs(parent, object) {
+  Object.keys(object).forEach(function (key) {
+    var line = make("div", "pair");
+    line.appendChild(make("span", "pair-name", titleCase(key)));
+    line.appendChild(make("span", "pair-value", shorten(describeValue(object[key]))));
+    parent.appendChild(line);
+  });
+}
+
+
 /* ---------------------------------------------------------------------------
    API
    --------------------------------------------------------------------------- */
@@ -228,9 +276,19 @@ function render(result) {
   byId("out-category").textContent = titleCase(result.category);
   byId("out-latency").textContent = seconds(result.latency_seconds);
 
+  // The classifier's own confidence in that category. A predicted label
+  // without it hides how close the decision was.
+  byId("out-category-confidence").textContent =
+    "confidence " + (result.category_confidence * 100).toFixed(1) + "%";
+
   var urgency = byId("out-urgency");
   urgency.textContent = titleCase(result.urgency_bucket);
   urgency.dataset.level = result.urgency_bucket;
+
+  // Urgency is computed as a score from category, sentiment and tier; the
+  // bucket is only how that score is banded, so both are shown.
+  byId("out-urgency-score").textContent =
+    "score " + result.urgency_score.toFixed(2);
 
   var action = byId("out-action");
   var escalated = result.action === "escalate_to_human";
@@ -249,6 +307,7 @@ function render(result) {
   renderAspects(result.aspect_sentiments);
   renderSources(result.retrieved_knowledge);
   renderTrace(result.reasoning_trace);
+  renderToolCalls(result.tool_calls);
 
   byId("hint-analysis").textContent =
     result.aspect_sentiments.length +
@@ -311,6 +370,9 @@ function renderSources(snippets) {
     var head = make("div", "row-head");
     head.appendChild(make("span", "row-name", snippet.heading));
     head.appendChild(make("span", "row-file", snippet.source));
+    // The cosine similarity FAISS ranked this chunk by. Without it "top-K"
+    // is just a list; with it you can see how good the match actually was.
+    head.appendChild(make("span", "score", snippet.score.toFixed(3)));
     item.appendChild(head);
 
     item.appendChild(make("div", "row-body", snippet.text.replace(/\s+/g, " ")));
@@ -342,6 +404,40 @@ function renderTrace(steps) {
   });
 }
 
+/* The assignment asks for the tool calls the agent made, not only the steps it
+   took. The trace shows the one-line observation; this shows what the tool was
+   actually called with and everything it returned. */
+function renderToolCalls(calls) {
+  var list = byId("out-tools");
+  clear(list);
+
+  if (calls.length === 0) {
+    list.appendChild(make("li", null, "The agent answered without calling a tool."));
+    return;
+  }
+
+  calls.forEach(function (call) {
+    var item = make("li");
+
+    var head = make("div", "row-head");
+    head.appendChild(make("span", "row-name", call.tool));
+    item.appendChild(head);
+
+    var args = make("div", "pairs");
+    args.appendChild(make("div", "pairs-title", "Called with"));
+    appendPairs(args, call.arguments);
+    item.appendChild(args);
+
+    var output = make("div", "pairs");
+    output.appendChild(make("div", "pairs-title", "Returned"));
+    appendPairs(output, call.output);
+    item.appendChild(output);
+
+    list.appendChild(item);
+  });
+}
+
+
 /* ---------------------------------------------------------------------------
    Processing steps, read from the workflow engine's state store
    --------------------------------------------------------------------------- */
@@ -362,11 +458,42 @@ async function loadStages(transactionId) {
       row.appendChild(
         make("td", "numeric", (stage.duration_seconds * 1000).toFixed(1) + " ms")
       );
+
+      // What the stage produced. This is the part that makes the pipeline
+      // genuinely inspectable rather than just a list of ticks.
+      var outputCell = make("td", "output-cell");
+      if (stage.error) {
+        outputCell.appendChild(make("span", "cell-critical", stage.error));
+      } else if (stage.output && Object.keys(stage.output).length > 0) {
+        var box = make("details", "cell-details");
+        box.appendChild(make("summary", null, "show"));
+        var pairs = make("div", "pairs");
+        appendPairs(pairs, stage.output);
+        box.appendChild(pairs);
+        outputCell.appendChild(box);
+      } else {
+        outputCell.appendChild(document.createTextNode("—"));
+      }
+      row.appendChild(outputCell);
+
       tableBody.appendChild(row);
     });
 
     byId("hint-processing").textContent =
       status.completed_stages + " of " + status.total_stages + " stages completed";
+
+    // After a retry, name the stages that were not re-run. That is the
+    // observable half of "re-run a failed stage without repeating the
+    // upstream stages that already succeeded".
+    var reused = byId("out-reused");
+    if (current && current.stages_reused && current.stages_reused.length > 0) {
+      reused.textContent =
+        "Reused from the previous run, not recomputed: " +
+        current.stages_reused.join(", ") + ".";
+      reused.hidden = false;
+    } else {
+      reused.hidden = true;
+    }
   } catch (error) {
     byId("hint-processing").textContent = "unavailable";
   }

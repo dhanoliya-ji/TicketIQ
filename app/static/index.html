@@ -71,10 +71,12 @@
       <div class="summary-item">
         <dt>Category</dt>
         <dd id="out-category">—</dd>
+        <p class="summary-sub" id="out-category-confidence"></p>
       </div>
       <div class="summary-item">
         <dt>Urgency</dt>
         <dd><span class="tag" id="out-urgency">—</span></dd>
+        <p class="summary-sub" id="out-urgency-score"></p>
       </div>
       <div class="summary-item">
         <dt>Action</dt>
@@ -119,7 +121,11 @@
       <summary>Reasoning trace and tool calls
         <span class="summary-hint" id="hint-reasoning"></span></summary>
       <div class="details-body">
+        <h4 class="detail-title">Reasoning trace</h4>
         <ol class="trace" id="out-trace"></ol>
+
+        <h4 class="detail-title">Tool calls</h4>
+        <ul class="stack" id="out-tools"></ul>
       </div>
     </details>
 
@@ -133,11 +139,13 @@
                 <th scope="col">Stage</th>
                 <th scope="col">Status</th>
                 <th scope="col" class="numeric">Duration</th>
+                <th scope="col">Output</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
+        <p class="summary-sub" id="out-reused" hidden></p>
       </div>
     </details>
   </section>
