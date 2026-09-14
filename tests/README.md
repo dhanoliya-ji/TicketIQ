@@ -1,6 +1,6 @@
 # `tests/` — the test suite
 
-**229 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
+**233 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
 no model server, no network, no clock dependence.
 
 ```bash
@@ -18,7 +18,7 @@ pytest -k "bandit and converge"               # one test by name
 | `conftest.py` | Shared fixtures and the fake language model | — |
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions checked against scikit-learn | 33 |
 | `test_nlp_and_rag.py` | aspect extraction and precision, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 46 |
-| `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
+| `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, untried arms under negative rewards, per-state isolation, convergence, persistence | 22 |
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, state store, schema self-healing | 26 |
 | `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, repeated tool calls, the escalation policy on all three paths, the step limit | 33 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
@@ -79,6 +79,7 @@ is never predicted. That is what makes keeping both worthwhile.
 - retrying only the stage that broke
 - duplicate feedback on one transaction
 - a corrupt bandit state file
+- negative rewards, where an untried arm's initial 0.0 used to look like the best score
 - an unknown tool name, an unknown action name, a non-object `action_input`
 - a model asking for the same tool call twice, and one looping on tool calls forever
 - a feature request escalated by the model, by an unparseable reply, and by the step limit

@@ -15,7 +15,7 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 229 passing, **99%** coverage of `app/` |
+| **Tests** | 233 passing, **99%** coverage of `app/` |
 | **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
@@ -59,15 +59,15 @@ rather than one monolithic function.
 | 5 | Lightweight online learner, no deep network | [bandit.py](app/rl/bandit.py) — epsilon-greedy contextual bandit | ✅ |
 | 5 | State = category + urgency + tier | [state.py](app/rl/state.py) — 36 states | ✅ |
 | 5 | Action = prompt config and/or RAG top-K | both: 2 variants × 2 top-K = 4 arms | ✅ |
-| 5 | Reward = feedback × 10 − latency | [state.py](app/rl/state.py) | ✅ |
-| 5 | Experiment showing the distribution shift | `scripts/simulate_bandit.py` — 54% → 89% optimal | ✅ |
+| 5 | Reward = feedback × 10 − latency | [state.py](app/rl/state.py) — verified numerically against the formula | ✅ |
+| 5 | Experiment showing the distribution shift | `scripts/simulate_bandit.py` — 54% → 89% optimal; also demonstrated through the real pipeline, 40 tickets | ✅ |
 | 6 | Named stages with declared dependencies (DAG) | [dag.py](app/workflow/dag.py), [pipeline.py](app/workflow/pipeline.py) — 7 stages | ✅ |
 | 6 | Per-ticket, per-stage state persisted | [state_store.py](app/workflow/state_store.py) — SQLite | ✅ |
 | 6 | Inspectable mid-flight | proved by `test_the_pipeline_can_be_inspected_while_it_is_still_running` | ✅ |
 | 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
 | 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment`, proved with a `threading.Barrier` | ✅ |
 | 7 | Type hints, black, ruff, pre-commit | mypy runs clean over `app/`; all four wired into `.pre-commit-config.yaml` | ✅ |
-| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 229 tests, 99% coverage | ✅ |
+| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 233 tests, 99% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
 
@@ -647,7 +647,7 @@ merely asserted to be right.
 ## Testing
 
 ```bash
-pytest                                              # 229 tests
+pytest                                              # 233 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -660,7 +660,7 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 |------|--------|-------|
 | `test_ml_classifier.py` | tokenizer, TF-IDF weights, Naive Bayes smoothing/priors/softmax, metric definitions checked against scikit-learn | 33 |
 | `test_nlp_and_rag.py` | aspect extraction and precision, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 46 |
-| `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
+| `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, untried arms under negative rewards, per-state isolation, convergence, persistence | 22 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, state store | 24 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, repeated tool calls, the escalation policy on all three paths, step limit | 33 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
@@ -714,7 +714,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 229 tests, 99% coverage
+├── tests/                      # 233 tests, 99% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml

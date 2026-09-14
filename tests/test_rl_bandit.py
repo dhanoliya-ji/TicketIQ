@@ -160,6 +160,48 @@ def test_bandit_converges_on_the_best_arm():
     assert late_best_count > 80  # out of 100, allowing for epsilon exploration
 
 
+def test_an_untried_arm_is_never_reported_as_the_best_one():
+    """Regression: negative rewards used to lose to an unmeasured arm.
+
+    The reward is feedback * 10 - latency, so any answer slower than ten
+    seconds scores below zero even when the customer said it helped - the
+    normal case against a local language model. An untried arm still carries
+    its initial 0.0, which beat the only arm that had actually been measured.
+    """
+    bandit = EpsilonGreedyContextualBandit(ACTIONS, epsilon=0.0, seed=1)
+    bandit.update(STATE, "config_b", -3.03)  # helpful answer, 13.0s latency
+
+    assert bandit.best_action(STATE) == "config_b"
+
+
+def test_the_best_arm_is_the_best_among_those_measured():
+    bandit = EpsilonGreedyContextualBandit(ACTIONS, epsilon=0.0, seed=1)
+    bandit.update(STATE, "config_a", -8.0)
+    bandit.update(STATE, "config_c", -2.0)
+    # config_b is still untried and still sits at 0.0.
+
+    assert bandit.best_action(STATE) == "config_c"
+
+
+def test_best_action_is_stable_when_nothing_has_been_tried():
+    bandit = EpsilonGreedyContextualBandit(ACTIONS, epsilon=0.0, seed=1)
+
+    # No evidence at all: an arbitrary but stable answer, not a crash.
+    assert bandit.best_action("a|state|nobody|has|seen") == ACTIONS[0]
+
+
+def test_exploitation_also_ignores_untried_arms():
+    """select_action and best_action must not disagree."""
+    bandit = EpsilonGreedyContextualBandit(ACTIONS, epsilon=0.0, seed=1)
+    for action in ACTIONS:
+        bandit.update(STATE, action, -5.0)
+    bandit.update(STATE, "config_c", -1.0)
+
+    action, reason = bandit.select_action(STATE)
+    assert reason == "exploit"
+    assert action == bandit.best_action(STATE)
+
+
 def test_total_pulls_counts_every_update():
     bandit = EpsilonGreedyContextualBandit(ACTIONS, epsilon=0.0, seed=1)
     bandit.update("state_one", "config_a", 1.0)

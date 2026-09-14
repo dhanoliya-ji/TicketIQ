@@ -36,6 +36,23 @@ The reward is the formula the assignment specifies. A helpful answer is worth 10
 points and every second of waiting costs one, so a configuration that is both
 slow *and* unhelpful is abandoned first.
 
+**What that formula implies at real latencies.** Against the offline template
+writer a ticket takes about 0.1 s, so a helpful answer scores roughly +9.9.
+Against a local language model it takes 12-16 s, so *every* reward is negative -
+about -1.7 to -6.2 even when the customer said the answer helped. The bandit is
+unaffected, because it compares arms rather than signs. Two things do follow,
+and both are worth knowing:
+
+* Helpfulness only outranks speed while the arms are within ten seconds of each
+  other. Measured on this machine the spread is 4.5 s, so helpfulness still
+  wins - but a configuration ten seconds slower than another would lose even
+  when it is the more useful one. That is inherent to the specified formula,
+  not to this implementation.
+* An arm that has never been pulled carries an initial average of 0.0, which
+  *beats* a real negative score. `_best_known_action` therefore ignores untried
+  arms; without that, the service reported an unmeasured arm as the best one as
+  soon as latencies passed ten seconds.
+
 ## The selection rule
 
 1. **Cold start** — any arm never tried in this state is tried first, so no arm
@@ -89,11 +106,29 @@ against a simulated world where no arm is globally best:
 | 20,000 | 67.7% | **88.8%** |
 
 With `epsilon = 0.15` the ceiling is about 88.8%, so at 20,000 tickets the
-bandit is essentially optimal.
+bandit is essentially optimal. Average reward per ticket rises from 5.66 to
+about 6.6 over the same run.
+
+**It also learns through the real service, not only in simulation.** Forty
+tickets posted through the full pipeline, with feedback given only when the
+bandit picked a `concise_policy` arm:
+
+```
+first 10 picks : all four arms tried
+last 10 picks  : concise_policy|k2 x9, concise_policy|k5 x1
+
+arm                         pulls   avg reward
+concise_policy|k2              31        9.910
+concise_policy|k5               4        9.906
+empathetic_stepwise|k2          2       -0.091   <- abandoned after 2 tries
+empathetic_stepwise|k5          3       -0.079
+```
 
 ## Tests
 
-`tests/test_rl_bandit.py` (18 tests) checks the incremental average against a
+`tests/test_rl_bandit.py` (22 tests) checks the incremental average against a
 plain average, the cold-start rule, the `epsilon = 0` and `epsilon = 1`
 extremes, that learning in one state does not leak into another, convergence on
-the best arm, and both persistence paths including a corrupt file.
+the best arm, both persistence paths including a corrupt file, and that an
+untried arm is never reported as the best one when the measured rewards are
+negative.

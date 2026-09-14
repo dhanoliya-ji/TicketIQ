@@ -107,16 +107,11 @@ class EpsilonGreedyContextualBandit:
                 self.exploration_count = self.exploration_count + 1
                 return chosen, "explore"
 
-            # 3. Otherwise exploit the best known arm.
-            best_action = self.actions[0]
-            best_average = arms[best_action].average_reward
-            for action in self.actions:
-                if arms[action].average_reward > best_average:
-                    best_action = action
-                    best_average = arms[action].average_reward
-
+            # 3. Otherwise exploit the best known arm. Every arm has been
+            #    pulled by now - the cold-start branch above guarantees it -
+            #    but the shared helper keeps the two agreeing regardless.
             self.exploitation_count = self.exploitation_count + 1
-            return best_action, "exploit"
+            return self._best_known_action(arms), "exploit"
 
     # ------------------------------------------------------------------
     # Learning from a reward
@@ -136,12 +131,38 @@ class EpsilonGreedyContextualBandit:
     def best_action(self, state_key: str) -> str:
         """The arm with the highest average reward in this state, ignoring epsilon."""
         with self.lock:
-            arms = self._arms_for_state(state_key)
-            best = self.actions[0]
-            for action in self.actions:
-                if arms[action].average_reward > arms[best].average_reward:
-                    best = action
-            return best
+            return self._best_known_action(self._arms_for_state(state_key))
+
+    def _best_known_action(self, arms: dict[str, ArmStatistics]) -> str:
+        """The best arm *among those actually tried*.
+
+        The "actually tried" part matters. An arm that has never been pulled
+        still carries the initial average of 0.0, and a real reward can easily
+        be negative: the reward is ``feedback * 10 - latency``, so any answer
+        slower than ten seconds scores below zero even when the customer said
+        it helped. Against a local language model that is the normal case, not
+        an edge case. Comparing on average alone therefore reported an untried
+        arm as the best one - it "beat" the only arm with evidence purely by
+        never having been measured.
+
+        When nothing has been tried yet there is no best arm, and the first
+        action is returned as an arbitrary but stable placeholder. Callers that
+        care reach this only after the cold-start rule has pulled every arm.
+
+        The caller already holds the lock.
+        """
+        best = self.actions[0]
+        best_is_known = arms[best].pulls > 0
+
+        for action in self.actions:
+            arm = arms[action]
+            if arm.pulls == 0:
+                continue
+            if not best_is_known or arm.average_reward > arms[best].average_reward:
+                best = action
+                best_is_known = True
+
+        return best
 
     def total_pulls(self) -> int:
         with self.lock:
