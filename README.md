@@ -15,7 +15,7 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 240 passing, **99%** coverage of `app/` |
+| **Tests** | 246 passing, **99%** coverage of `app/` |
 | **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | A single page at `/`, served by the same app — no build step, no new dependency |
@@ -23,10 +23,96 @@ rather than one monolithic function.
 
 ---
 
+## Run it
+
+Everything below is copy-paste. **Python 3.10 or newer is the only
+requirement** — no model server, no database, no build step, nothing to
+download or train first. Run these from the folder holding `README.md`.
+
+**macOS and Linux**
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app
+```
+
+**Windows (PowerShell)**
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m uvicorn app.main:app
+```
+
+These call the virtual environment's own Python directly rather than
+activating it first, because `.venv\Scripts\Activate.ps1` fails on a default
+Windows install — the execution policy is `Restricted` out of the box and
+refuses to run the script. Calling `python.exe` works whatever the policy is.
+If you would rather activate, `.venv\Scriptsctivate.bat` does it from
+`cmd.exe`, or allow the script once with
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+
+Then open **<http://localhost:8000/>** — submit any ticket you like in your own
+words. <http://localhost:8000/docs> is the interactive API documentation, where
+every endpoint can be called from the browser.
+
+**To stop it: press `Ctrl+C` in that terminal.**
+
+If the terminal has been closed and the port is still held:
+
+```powershell
+# Windows PowerShell
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess
+```
+
+```bash
+# macOS and Linux
+kill $(lsof -ti:8000)
+```
+
+### Checking it is working
+
+```bash
+curl http://localhost:8000/health
+```
+
+```json
+{"ready":true,"llm_backend":"template","knowledge_chunks":28,
+ "classifier_accuracy":0.95,"bandit_updates":0}
+```
+
+`"llm_backend":"template"` is the expected answer on a machine without Ollama,
+and everything works: the classifier, the aspect sentiment, the FAISS
+retrieval, the agent and its tools, the bandit and the workflow engine are all
+ordinary Python and never needed a model server. Only the wording of the final
+customer reply comes from the template writer instead of a language model, and
+every response says which backend produced it. To use real models instead, see
+[Language model setup](#language-model-setup) — it is two `ollama pull`
+commands and no code change.
+
+To run the test suite as well:
+
+```bash
+pip install -r requirements-dev.txt   # Windows: .venv\Scripts\python.exe -m pip install ...
+pytest                                # Windows: .venv\Scripts\python.exe -m pytest
+```
+
+**Verified from a clean copy.** The above was run against a fresh export of
+this repository — new virtual environment, `requirements.txt` only — both with
+Ollama running (`"llm_backend":"ollama"`, a ticket answered in 12.5 s) and with
+no model server reachable at all (`"llm_backend":"template"`, the same ticket
+answered in 0.10 s, same category, same retrieved policy). The Windows
+commands were checked under a `Restricted` execution policy, and the stop
+command was checked by using it to stop a running service.
+
+---
+
 ## Table of contents
 
 - [The suggested stack, line by line](#the-suggested-stack-line-by-line)
-- [Quick start](#quick-start)
+- [Run it](#run-it)
+- [Running it in other ways](#running-it-in-other-ways)
 - [The console](#the-console)
 - [Architecture](#architecture)
 - [API reference](#api-reference)
@@ -106,93 +192,33 @@ in the file unused.
 
 ---
 
-## Quick start
+## Running it in other ways
 
-### Without Docker
+[Run it](#run-it) above is the short path. This section covers everything else.
 
-Requires Python 3.10 or newer.
-
-```bash
-# 1. clone and enter the repository
-cd TicketIQ
-
-# 2. create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 3. install dependencies
-pip install -r requirements.txt -r requirements-dev.txt
-
-# 4. run the service
-uvicorn app.main:app --reload
-```
-
-Then open **<http://localhost:8000/>** to submit a ticket.
-<http://localhost:8000/docs> is the interactive API documentation.
-To stop it, press Ctrl+C in that terminal — see
-[Starting and stopping the service](#starting-and-stopping-the-service) for
-the rest.
-
-From the command line:
+### Options when starting
 
 ```bash
-curl http://localhost:8000/health
-```
-
-```json
-{"ready":true,"llm_backend":"template","knowledge_chunks":28,
- "classifier_accuracy":0.95,"bandit_updates":0}
-```
-
-Nothing needs to be trained or downloaded first: the classifier trains at
-startup from `data/tickets.json` (milliseconds) and the knowledge base is
-indexed in memory.
-
-### Starting and stopping the service
-
-**Start it** — from the repository root, with the virtual environment active:
-
-```bash
-uvicorn app.main:app --reload                      # development, reloads on edit
+uvicorn app.main:app --reload                      # reload on every edit
 uvicorn app.main:app --host 0.0.0.0 --port 8000    # reachable from other machines
+uvicorn app.main:app --port 8001                   # when 8000 is taken
 ```
 
 `--reload` watches the Python files. The three files in `app/static/` are read
 fresh on every request, so editing the console needs only a browser refresh.
 
-**Stop it** — press **Ctrl+C** in the terminal running it. That is the normal
-way, and uvicorn shuts down cleanly: the SQLite state store is committed after
-every stage, so nothing is lost mid-ticket.
+**`Address already in use`** means an earlier run still holds the port. Stop it
+with the commands in [Run it](#run-it), or pick another port.
 
-If the terminal is gone — it was started in the background, or the window was
-closed — stop it by the port it holds:
+Stopping is always clean: the SQLite state store is committed after every
+stage, so Ctrl+C cannot leave a ticket half-written.
 
-```powershell
-# Windows PowerShell
-Get-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess
-Stop-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess
-```
+### Starting from scratch
 
-```bash
-# macOS and Linux
-lsof -ti:8000            # show the process holding the port
-kill $(lsof -ti:8000)    # ask it to stop; add -9 only if it will not
-```
-
-Check which state it is in either way:
-
-```bash
-curl http://localhost:8000/health     # answers when up, connection refused when down
-```
-
-**`Address already in use` on startup** means a previous run is still holding
-the port. Stop it with the commands above, or start the new one on another
-port with `--port 8001`.
-
-**Starting fresh.** Everything the service learns lives in `var/` — the bandit
-statistics and the per-ticket workflow history. Deleting it resets the service
-to a cold start, which is worth doing before a demo so the bandit is not part
-way through exploring:
+Everything the service learns lives in `var/` — the bandit statistics and the
+per-ticket workflow history. Deleting it returns the service to a cold start,
+which is worth doing before showing it to someone so the bandit is not part way
+through exploring:
 
 ```bash
 # with the service stopped
@@ -200,8 +226,8 @@ rm -rf var        # Windows PowerShell: Remove-Item -Recurse -Force var
 ```
 
 Delete it only while the service is stopped. The schema is recreated on the
-next connection, so a running process survives it, but any ticket in flight
-loses its history.
+next connection, so a running process survives it, but a ticket in flight loses
+its history.
 
 ### With Docker
 
@@ -231,6 +257,7 @@ python data/generate_tickets.py        # regenerate the labelled dataset
 ```
 
 ---
+
 
 ## The console
 

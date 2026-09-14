@@ -8,7 +8,7 @@
 
 | Question | Read |
 |----------|------|
-| How do I run it? | [root README](../README.md#quick-start) |
+| How do I run it? | [root README](../README.md#run-it) |
 | What does each endpoint return? | [root README](../README.md#api-reference) |
 | Why a contextual bandit and not Q-learning? | [ARCHITECTURE.md section 9](ARCHITECTURE.md#9-reinforcement-learning) |
 | How does the DAG engine resume a failed run? | [ARCHITECTURE.md section 3](ARCHITECTURE.md#3-the-workflow-engine) |
