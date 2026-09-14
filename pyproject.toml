@@ -36,9 +36,18 @@ select = [
 # mypy: static type checking. The application code is fully annotated, so this
 # runs clean; tests are excluded because their fixtures and monkeypatching add
 # noise without adding safety.
+#
+# There is deliberately no `python_version` here, so mypy targets whichever
+# interpreter it is running under. Pinning it to the project floor (3.10) broke
+# CI on Python 3.12: pip resolves a newer numpy there, whose type stubs use the
+# PEP 695 `type X = ...` statement, and mypy rejected that as "only supported in
+# Python 3.12 and greater" because it had been told to target 3.10. A dependency
+# is entitled to use syntax as new as the interpreter it was installed for.
+#
+# Keeping *our* code compatible with 3.10 is ruff's job instead - see
+# `target-version = "py310"` above, which checks the source we actually own.
 # ---------------------------------------------------------------------------
 [tool.mypy]
-python_version = "3.10"
 files = ["app"]
 ignore_missing_imports = true     # vaderSentiment ships no type stubs
 warn_unused_ignores = true
