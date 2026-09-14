@@ -7,6 +7,7 @@ parallelism, resumability, and clean failure handling.
 
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -269,6 +270,85 @@ def test_only_the_failed_stage_is_re_run(temporary_store):
     assert upstream_runs["count"] == 1
     assert second.reused_stages == ["upstream"]
     assert second.executed_stages == ["flaky"]
+
+
+def test_a_failing_stage_does_not_discard_its_concurrent_sibling(temporary_store):
+    """Two stages run together, one fails - the other's work must survive.
+
+    Otherwise the retry would recompute work that had already succeeded, which
+    is exactly what the persisted state exists to prevent.
+    """
+    runs = {"sibling": 0}
+    should_fail = {"value": True}
+
+    def sibling(context: StageContext) -> dict:
+        runs["sibling"] = runs["sibling"] + 1
+        return {"value": "computed once"}
+
+    def flaky(context: StageContext) -> dict:
+        if should_fail["value"]:
+            raise RuntimeError("dependency unavailable")
+        return {"ok": True}
+
+    engine = WorkflowEngine(
+        [
+            Stage("sibling", [], sibling),
+            Stage("flaky", [], flaky),
+            Stage("downstream", ["sibling", "flaky"], lambda context: {"done": True}),
+        ],
+        temporary_store,
+    )
+
+    first = engine.run("tx-sibling", {})
+    assert first.succeeded is False
+    assert first.failed_stage == "flaky"
+    # The sibling completed and its output was persisted.
+    assert temporary_store.get_stage("tx-sibling", "sibling").status == STATUS_COMPLETED
+    assert temporary_store.get_stage("tx-sibling", "sibling").output == {"value": "computed once"}
+    assert temporary_store.get_stage("tx-sibling", "downstream").status == STATUS_SKIPPED
+
+    should_fail["value"] = False
+    retry = engine.run("tx-sibling", {})
+
+    assert retry.succeeded is True
+    assert retry.reused_stages == ["sibling"]
+    assert sorted(retry.executed_stages) == ["downstream", "flaky"]
+    # The whole point: it was not computed a second time.
+    assert runs["sibling"] == 1
+
+
+def test_many_transactions_can_run_at_once_without_mixing_state(temporary_store):
+    """The store is shared, so per-ticket isolation is worth pinning down."""
+
+    def record(context: StageContext) -> dict:
+        return {"ticket": context.inputs["ticket"]}
+
+    engine = WorkflowEngine(
+        [
+            Stage("first", [], record),
+            Stage("second", [], record),
+            Stage("third", ["first", "second"], record),
+        ],
+        temporary_store,
+    )
+
+    transaction_ids = ["tx-" + str(index) for index in range(8)]
+
+    def run_one(transaction_id: str):
+        return engine.run(transaction_id, {"ticket": transaction_id})
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(run_one, transaction_ids))
+
+    for transaction_id, result in zip(transaction_ids, results, strict=True):
+        assert result.succeeded is True
+        # Each run only ever saw its own input.
+        assert result.outputs["third"]["ticket"] == transaction_id
+        # And wrote exactly its own three rows.
+        rows = temporary_store.get_stages(transaction_id)
+        assert len(rows) == 3
+        for row in rows:
+            assert row.status == STATUS_COMPLETED
 
 
 def test_resume_false_re_runs_everything(temporary_store):

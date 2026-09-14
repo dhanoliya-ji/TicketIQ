@@ -40,6 +40,20 @@ the retrieved knowledge.
 `GET /workflow/graph` returns this table live, computed from the declared
 dependencies rather than written down anywhere.
 
+## Measured, not just designed
+
+The two level-0 stages really do overlap. The store records `started_at` and
+`finished_at` for every stage, so this is read back from a real run rather than
+inferred:
+
+```
+stage                  thread      started     finished
+classify_ticket         17832      6.23ms      15.20ms
+analyse_sentiment       34876      0.00ms      11.20ms
+
+different threads : True        wall-clock overlap : 4.97 ms
+```
+
 ## Execution levels (Kahn's algorithm)
 
 Level 0 is every stage with no dependencies. Level N is every stage whose
@@ -131,7 +145,17 @@ completed.
 
 ## Tests
 
-`tests/test_workflow_engine.py` (26 tests) covers level computation, all four
+`tests/test_workflow_engine.py` (28 tests) covers level computation, all four
 rejection cases, failure and skip propagation, resume, retry-of-one-stage, and
 the state store. Real parallelism is proved with a `threading.Barrier` that only
 passes if two stages genuinely run at the same time.
+
+Two cases worth calling out, because they are where a concurrent engine tends
+to go wrong:
+
+* **One concurrent stage fails, its sibling succeeds.** The sibling's output is
+  persisted and reused on retry, so the work is not paid for twice. Without
+  that, the whole point of the persisted state would be lost precisely when it
+  matters.
+* **Eight transactions running at once.** They share one store and one engine;
+  each still sees only its own inputs and writes exactly its own stage rows.
