@@ -43,6 +43,28 @@ from app.settings import SETTINGS
 # trace is recorded even when the agent is driven by a script or a test.
 logger = logging.getLogger("ticketiq.agent")
 
+# The one category whose escalation the knowledge base forbids outright.
+FEATURE_REQUEST_CATEGORY = "feature_request"
+
+FEATURE_REQUEST_OVERRIDE_NOTE = (
+    "policy: a feature request is never escalated, so this was answered on the "
+    "normal queue instead"
+)
+
+
+def enforce_escalation_policy(decision: str, category: str) -> tuple[str, str]:
+    """Apply the one escalation rule the knowledge base states outright.
+
+    Returns ``(decision, override note)``; the note is empty when nothing was
+    changed. This is a function rather than an inline check because three
+    separate paths can end in an escalation - the model choosing it, an
+    unparseable reply, and the step limit running out - and the rule has to
+    hold on all three, not just the tidy one.
+    """
+    if decision == ESCALATE_TO_HUMAN and category == FEATURE_REQUEST_CATEGORY:
+        return ANSWER, FEATURE_REQUEST_OVERRIDE_NOTE
+    return decision, ""
+
 
 class AgentStep:
     """One turn of the loop, kept for the audit trail."""
@@ -54,6 +76,10 @@ class AgentStep:
         self.action_input = action_input
         # Filled in only when the action was a tool call.
         self.observation: str = ""
+        # Set when a policy rule changed the model's chosen action. Empty for
+        # the ordinary case, so the trace shows plainly when the system
+        # overrode the model and why.
+        self.override: str = ""
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -62,6 +88,7 @@ class AgentStep:
             "action": self.action,
             "action_input": self.action_input,
             "observation": self.observation,
+            "override": self.override,
         }
 
 
@@ -288,7 +315,21 @@ class TriageAgent:
             if action not in ALL_ACTION_NAMES:
                 action = ANSWER
 
+            # One policy rule is enforced rather than merely asked for. The
+            # knowledge base states twice - in the feature request document and
+            # in the escalation rules - that a feature request is never
+            # escalated, and the system prompt says so too, but a small model
+            # ignores it: llama3.2:1b escalated all four sample categories,
+            # including a request for dark mode. Quoting a policy to customers
+            # while acting against it is not a defensible default, so the
+            # decision is corrected here and the correction is recorded in the
+            # trace rather than hidden.
+            action, override_note = enforce_escalation_policy(action, category)
+            if override_note:
+                logger.info("step %s | policy override | %s", step_number, override_note)
+
             step = AgentStep(step_number, thought, action, action_input)
+            step.override = override_note
             result.trace.append(step)
 
             logger.info(
@@ -356,6 +397,17 @@ class TriageAgent:
                     {"reason": "step limit reached"},
                 )
             )
+
+        # The two paths above - an unparseable reply and the step limit - set the
+        # decision directly, so the rule is applied once more here. Without
+        # this, a feature request whose model reply failed to parse would be
+        # escalated in defiance of the policy the system quotes to customers.
+        decision, final_override = enforce_escalation_policy(decision, category)
+        if final_override:
+            logger.info("policy override | %s", final_override)
+            if len(result.trace) > 0:
+                result.trace[-1].action = decision
+                result.trace[-1].override = final_override
 
         logger.info(
             "decision=%s | steps=%s | tools=%s | config=%s",

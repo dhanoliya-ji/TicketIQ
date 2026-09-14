@@ -1,6 +1,6 @@
 # `tests/` — the test suite
 
-**223 tests, 98% coverage of `app/`.** Every test is offline and deterministic:
+**229 tests, 99% coverage of `app/`.** Every test is offline and deterministic:
 no model server, no network, no clock dependence.
 
 ```bash
@@ -20,7 +20,7 @@ pytest -k "bandit and converge"               # one test by name
 | `test_nlp_and_rag.py` | aspect extraction and precision, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 46 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, per-state isolation, convergence, persistence | 18 |
 | `test_workflow_engine.py` | level computation, graph rejection cases, real parallelism, failure + skip, resume, retry-one-stage, state store, schema self-healing | 26 |
-| `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, repeated tool calls, the step limit | 27 |
+| `test_agent.py` | mock tools, JSON extraction from prose, the ReAct loop, malformed replies, repeated tool calls, the escalation policy on all three paths, the step limit | 33 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
 | `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console routes | 31 |
 | `test_end_to_end.py` | the full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection, a deleted database | 18 |
@@ -81,6 +81,7 @@ is never predicted. That is what makes keeping both worthwhile.
 - a corrupt bandit state file
 - an unknown tool name, an unknown action name, a non-object `action_input`
 - a model asking for the same tool call twice, and one looping on tool calls forever
+- a feature request escalated by the model, by an unparseable reply, and by the step limit
 - retrying a transaction that never existed, and one that already succeeded
 
 **Deliberate coverage gaps.** The ~1% not covered is the `except` arm of the

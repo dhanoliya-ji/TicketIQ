@@ -73,6 +73,8 @@ class ReasoningStepModel(BaseModel):
     action: str
     action_input: dict
     observation: str
+    # Non-empty when a policy rule changed the action the model chose.
+    override: str = ""
 
 
 class ToolCallModel(BaseModel):

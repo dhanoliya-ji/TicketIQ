@@ -44,6 +44,29 @@ variant the bandit chose — turns the decision into the reply text.
 | Tool called without an identifier | fill it in from the ticket text | models routinely forget to pass arguments through |
 | Model only ever calls tools | hard stop at `agent_max_steps` (default 4), then escalate | a confused model can never spin forever |
 | Model repeats a call it already made | replay the earlier result instead of re-running the tool | observed with `llama3.2:1b`; re-running burns a step and, for a tool with real side effects, would be worse than wasteful |
+| Model escalates a feature request | corrected to `answer`, and the correction is recorded in the trace | the knowledge base forbids it twice over — see below |
+
+## The one rule that is enforced, not asked for
+
+Everything above is the agent recovering from a malformed reply. This one is
+different: it overrides a decision the model made cleanly.
+
+`04_feature_request_handling.md` and `05_escalation_rules.md` both state that a
+feature request is never escalated, and the decide prompt says so too — yet
+`llama3.2:1b` escalated a request for dark mode anyway, and called
+`check_account_status` on it for good measure. Quoting a policy to customers
+while acting against it is not a defensible default, so
+`enforce_escalation_policy` corrects it.
+
+Three separate paths can end in an escalation — the model choosing it, an
+unparseable reply, and the step limit running out — and the rule is applied to
+**all three**. The first version only covered the tidy path, which meant a
+feature request whose reply failed to parse was still escalated.
+
+The correction is never silent: the step keeps the model's own thought, its
+`override` field says what changed and why, and it is logged. Measured across
+six live runs afterwards: zero escalated feature requests, with the policy
+visibly stepping in once.
 
 ## The audit trail
 
@@ -81,6 +104,6 @@ extract_identifiers("Duplicate payment on order 4471", "My account 9912 was char
 
 ## Tests
 
-`tests/test_agent.py` (27 tests) drives the loop with a fake model, so each test
+`tests/test_agent.py` (33 tests) drives the loop with a fake model, so each test
 can force a specific decision sequence. It covers every row of the failure table
 above, plus the tools and the JSON extraction from prose.

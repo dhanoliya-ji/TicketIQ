@@ -230,6 +230,130 @@ def test_escalation_is_a_terminal_decision(fake_llm_factory):
     assert len(result.trace) == 1
 
 
+def test_a_feature_request_is_never_escalated(fake_llm_factory):
+    """The knowledge base forbids it, so the system enforces it.
+
+    Both `04_feature_request_handling.md` and `05_escalation_rules.md` say a
+    feature request is never escalated, and the decide prompt says so too - but
+    llama3.2:1b escalated a request for dark mode anyway. Quoting a policy to
+    customers while acting against it is not a defensible default.
+    """
+    fake = fake_llm_factory(
+        ['{"thought": "seems urgent", "action": "escalate_to_human", "action_input": {}}']
+    )
+    agent = TriageAgent(fake)
+
+    result = agent.run(
+        subject="Please add dark mode",
+        body="It would be great if the product supported a dark theme.",
+        customer_tier="enterprise",
+        category="feature_request",
+        urgency_bucket="high",
+        snippets=SNIPPETS,
+        config=CONFIG,
+    )
+
+    assert result.decision == "answer"
+    # The override is recorded, not hidden: the model's thought survives and
+    # the correction is stated alongside it.
+    assert result.trace[0].action == "answer"
+    assert "never escalated" in result.trace[0].override
+    assert result.trace[0].thought == "seems urgent"
+    assert result.as_dict()["reasoning_trace"][0]["override"] != ""
+
+
+def test_a_feature_request_is_not_escalated_by_an_unparseable_reply(fake_llm_factory):
+    """The rule has to survive the fallback paths, not just the tidy one.
+
+    An unparseable reply escalates by design - but not for a feature request,
+    or the system would defy the policy it quotes to customers whenever a small
+    model produced malformed JSON.
+    """
+    fake = fake_llm_factory(["not json at all"])
+    agent = TriageAgent(fake)
+
+    result = agent.run(
+        subject="Please add dark mode",
+        body="A dark theme would help.",
+        customer_tier="enterprise",
+        category="feature_request",
+        urgency_bucket="high",
+        snippets=SNIPPETS,
+        config=CONFIG,
+    )
+
+    assert result.decision == "answer"
+    assert "never escalated" in result.trace[-1].override
+
+
+def test_a_feature_request_is_not_escalated_by_the_step_limit(fake_llm_factory):
+    """The other fallback path: the loop runs out of steps."""
+    tool_call = (
+        '{"thought": "again", "action": "check_account_status",'
+        ' "action_input": {"customer_id": "%s"}}'
+    )
+    fake = fake_llm_factory([tool_call % index for index in range(20)])
+    agent = TriageAgent(fake)
+
+    result = agent.run(
+        subject="Please add dark mode",
+        body="A dark theme would help.",
+        customer_tier="enterprise",
+        category="feature_request",
+        urgency_bucket="high",
+        snippets=SNIPPETS,
+        config=CONFIG,
+    )
+
+    assert result.decision == "answer"
+    assert "never escalated" in result.trace[-1].override
+
+
+def test_the_same_fallbacks_still_escalate_other_categories(fake_llm_factory):
+    """The net is one rule for one category, not a blanket suppression."""
+    agent = TriageAgent(fake_llm_factory(["not json at all"]))
+    result = agent.run(
+        subject="Total outage",
+        body="Everything is down.",
+        customer_tier="enterprise",
+        category="technical",
+        urgency_bucket="high",
+        snippets=SNIPPETS,
+        config=CONFIG,
+    )
+
+    assert result.decision == "escalate_to_human"
+    assert result.trace[-1].override == ""
+
+
+def test_other_categories_may_still_escalate(fake_llm_factory):
+    """The guard is one rule, not a blanket ban on escalation."""
+    fake = fake_llm_factory(
+        ['{"thought": "outage", "action": "escalate_to_human", "action_input": {}}']
+    )
+    agent = TriageAgent(fake)
+
+    result = agent.run(
+        subject="Total outage",
+        body="Every API call returns a 500 error.",
+        customer_tier="enterprise",
+        category="technical",
+        urgency_bucket="high",
+        snippets=SNIPPETS,
+        config=CONFIG,
+    )
+
+    assert result.decision == "escalate_to_human"
+    assert result.trace[0].override == ""
+
+
+def test_an_ordinary_step_records_no_override(fake_llm_factory):
+    fake = fake_llm_factory(['{"thought": "clear", "action": "answer", "action_input": {}}'])
+    result = run_agent(fake)
+
+    assert result.trace[0].override == ""
+
+
 def test_an_unparseable_reply_escalates_rather_than_guessing(fake_llm_factory):
     fake = fake_llm_factory(["I am not going to answer in JSON today."])
     result = run_agent(fake)
