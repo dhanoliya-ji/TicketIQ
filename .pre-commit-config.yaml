@@ -1,19 +1,26 @@
 # Run with:  pre-commit install   (then hooks run on every `git commit`)
 # Or on the whole repo:  pre-commit run --all-files
+#
+# The revisions below MUST match the pinned versions in requirements-dev.txt.
+# They are the same tools CI runs, and a version gap is not cosmetic: black
+# 24.8.0 and 26.5.1 format `connection.execute("""...""")` differently, so a
+# developer running pre-commit produced a file that CI's black then rejected,
+# and fixing it for one broke it for the other.
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 26.5.1
     hooks:
       - id: black
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.16.7
     hooks:
-      - id: ruff
+      # "ruff-check" since ruff 0.13; the old "ruff" id still works but warns.
+      - id: ruff-check
         args: [--fix]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v2.3.1
     hooks:
       - id: mypy
         # Only the application code is type checked; see pyproject.toml.

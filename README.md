@@ -66,7 +66,7 @@ rather than one monolithic function.
 | 6 | Inspectable mid-flight | proved by `test_the_pipeline_can_be_inspected_while_it_is_still_running` | ✅ |
 | 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
 | 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment` — proved with a `threading.Barrier`, and measured at 4.97 ms of real wall-clock overlap on separate threads | ✅ |
-| 7 | Type hints, black, ruff, pre-commit | mypy runs clean over `app/`; all four wired into `.pre-commit-config.yaml` | ✅ |
+| 7 | Type hints, black, ruff, pre-commit | mypy passes `--disallow-untyped-defs` over `app/`; all four wired into `.pre-commit-config.yaml`, verified by actually running `pre-commit run --all-files` | ✅ |
 | 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 235 tests, 99% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
@@ -681,8 +681,19 @@ black app tests scripts data          # format
 ruff check app tests scripts data     # lint
 mypy                                  # static type check of app/
 pre-commit install                    # wire all three into git commit
-pre-commit run --all-files
+pre-commit run --all-files            # or run them over the whole repo now
 ```
+
+**The tool versions are pinned, and the two places that name them are kept in
+step.** `requirements-dev.txt` pins `black`, `ruff` and `mypy` exactly, and
+`.pre-commit-config.yaml` names the same versions. That is not fussiness: the
+config originally pinned black 24.8.0 while `requirements-dev.txt` floated to
+26.5.1, and the two format `connection.execute("""...""")` differently — so
+`pre-commit` rewrote a file that CI's black then rejected, and fixing it for
+one broke it for the other. Bump both together.
+
+Type hints are complete, not merely present: `mypy --disallow-untyped-defs
+--disallow-incomplete-defs app` passes clean.
 
 CI (`.github/workflows/ci.yml`) runs black, ruff, mypy and the test suite on
 Python 3.11 and 3.12, verifies the dataset regenerates byte-identically, runs both
