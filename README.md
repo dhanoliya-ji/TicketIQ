@@ -25,6 +25,7 @@ rather than one monolithic function.
 
 ## Table of contents
 
+- [The suggested stack, line by line](#the-suggested-stack-line-by-line)
 - [Quick start](#quick-start)
 - [The console](#the-console)
 - [Architecture](#architecture)
@@ -70,6 +71,38 @@ rather than one monolithic function.
 | 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 235 tests, 99% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
+
+---
+
+## The suggested stack, line by line
+
+The brief's stack list mixes required tools with menus of alternatives. This is
+what is actually installed and imported, and what was deliberately left out.
+
+| Brief's line | Used here | Where |
+|---|---|---|
+| **API:** FastAPI, Uvicorn, Pydantic | all three | `app/main.py`, `app/schemas.py`; Uvicorn is the ASGI server, run from the CLI and the Dockerfile |
+| **NLP / ML:** numpy, scikit-learn *(vectorisation/metrics only)*, spaCy, NLTK/VADER, or a HuggingFace pipeline | **numpy**, **scikit-learn**, **VADER** | `app/rag/vector_store.py`, `app/ml/dataset.py`, `app/ml/sklearn_metrics.py`, `app/ml/aspect_sentiment.py` |
+| **Agent / RAG framework:** LangChain, LlamaIndex, or native Python | **native Python** — the brief's third option | `app/agent/react_agent.py`, `app/rag/` |
+| **Vector store:** FAISS or ChromaDB | **FAISS** (`IndexFlatIP`) | `app/rag/vector_store.py` |
+| **Models:** Ollama, or any API-based model | **Ollama**, two models | `llama3.2:1b` + `qwen2.5:1.5b`, verified running |
+| **Workflow engine:** a hand-rolled DAG runner, *preferred over* Airflow/Prefect/Celery | **hand-rolled**, 315 lines, stdlib only | `app/workflow/dag.py` |
+| **Quality/DevOps:** black, ruff, mypy *(optional)*, pre-commit, pytest, pytest-cov, Docker, GitHub Actions | all eight, including the optional mypy | `pyproject.toml`, `.pre-commit-config.yaml`, `Dockerfile`, `.github/workflows/ci.yml` |
+
+**Deliberately not used**, all of them alternatives inside an "or" in the same
+list: spaCy and HuggingFace (VADER is what requirement 2 calls sufficient),
+LangChain and LlamaIndex, ChromaDB, and Airflow/Prefect/Celery — which the brief
+explicitly prefers to avoid.
+
+**One substitution worth naming.** The brief writes "NLTK/VADER". This uses the
+standalone `vaderSentiment` package rather than `nltk.sentiment.vader`. It is
+the same algorithm and the same lexicon by the same author; the standalone
+package just avoids pulling in NLTK and its corpus download.
+
+**No dependency is declared but unused.** Every line of `requirements.txt` and
+`requirements-dev.txt` is either imported by the code or run as a command-line
+tool — checked by walking the import graph, after `numpy` was once found sitting
+in the file unused.
 
 ---
 
