@@ -203,7 +203,6 @@ async function retryTicket(transactionId, button) {
     showError(null);
     render(result);
     loadStages(result.transaction_id);
-    loadRouting(result.rl_state_key);
     byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     button.disabled = false;
@@ -246,7 +245,6 @@ async function submitTicket(event) {
 
     // The per-stage timings come from the workflow engine's own state store.
     loadStages(result.transaction_id);
-    loadRouting(result.rl_state_key);
 
     byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
@@ -310,18 +308,18 @@ function renderAspects(aspects) {
   aspects.forEach(function (aspect) {
     var item = make("li");
 
-    var head = make("div", "aspect-head");
-    head.appendChild(make("span", "aspect-name", titleCase(aspect.aspect)));
+    var head = make("div", "row-head");
+    head.appendChild(make("span", "row-name", titleCase(aspect.aspect)));
 
-    var label = make("span", "aspect-label", aspect.label);
-    label.dataset.polarity = aspect.label;
-    head.appendChild(label);
+    var polarity = make("span", "polarity", aspect.label);
+    polarity.dataset.polarity = aspect.label;
+    head.appendChild(polarity);
 
-    head.appendChild(make("span", "aspect-score", aspect.score.toFixed(2)));
+    head.appendChild(make("span", "score", aspect.score.toFixed(2)));
     item.appendChild(head);
 
     if (aspect.evidence) {
-      item.appendChild(make("div", "aspect-quote", "“" + aspect.evidence + "”"));
+      item.appendChild(make("div", "row-quote", "“" + aspect.evidence + "”"));
     }
     list.appendChild(item);
   });
@@ -339,12 +337,12 @@ function renderSources(snippets) {
   snippets.forEach(function (snippet) {
     var item = make("li");
 
-    var head = make("div", "source-head");
-    head.appendChild(make("span", "source-heading", snippet.heading));
-    head.appendChild(make("span", "source-file", snippet.source));
+    var head = make("div", "row-head");
+    head.appendChild(make("span", "row-name", snippet.heading));
+    head.appendChild(make("span", "row-file", snippet.source));
     item.appendChild(head);
 
-    item.appendChild(make("div", "source-text", snippet.text.replace(/\n/g, " ")));
+    item.appendChild(make("div", "row-body", snippet.text.replace(/\s+/g, " ")));
     list.appendChild(item);
   });
 }
@@ -364,6 +362,11 @@ function renderTrace(steps) {
     if (step.observation) {
       item.appendChild(make("div", "trace-observation", step.observation));
     }
+    // Shown when a policy rule changed what the model asked for, so the
+    // override is visible rather than silently applied.
+    if (step.override) {
+      item.appendChild(make("div", "trace-override", "Adjusted — " + step.override));
+    }
     list.appendChild(item);
   });
 }
@@ -381,11 +384,13 @@ async function loadStages(transactionId) {
 
     status.stages.forEach(function (stage) {
       var row = make("tr");
-      row.appendChild(make("td", null, stage.stage));
+      row.appendChild(make("td", "name", stage.stage));
       row.appendChild(
         make("td", stage.status === "completed" ? "cell-good" : "cell-critical", stage.status)
       );
-      row.appendChild(make("td", null, (stage.duration_seconds * 1000).toFixed(1) + " ms"));
+      row.appendChild(
+        make("td", "numeric", (stage.duration_seconds * 1000).toFixed(1) + " ms")
+      );
       tableBody.appendChild(row);
     });
 
@@ -393,70 +398,6 @@ async function loadStages(transactionId) {
       status.completed_stages + " of " + status.total_stages + " stages completed";
   } catch (error) {
     byId("hint-processing").textContent = "unavailable";
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   Routing performance: what the bandit has learned for this kind of ticket
-   --------------------------------------------------------------------------- */
-async function loadRouting(stateKey) {
-  var tableBody = byId("out-routing").querySelector("tbody");
-  clear(tableBody);
-
-  try {
-    var stats = await apiGet("/rl/stats");
-    var arms = stats.states[stateKey];
-
-    byId("routing-note").textContent =
-      "Reply style and how much policy to retrieve are chosen by an online " +
-      "bandit, scored as (feedback × 10) − latency. Figures below are for " +
-      "tickets like this one (" +
-      stateKey.split("|").join(", ") +
-      ").";
-
-    if (!arms) {
-      byId("hint-routing").textContent = "no data yet";
-      var empty = make("tr");
-      var cell = make("td", null, "No feedback recorded for this ticket type yet.");
-      cell.colSpan = 3;
-      empty.appendChild(cell);
-      tableBody.appendChild(empty);
-      return;
-    }
-
-    var bestName = null;
-    var bestReward = -Infinity;
-    var totalPulls = 0;
-
-    stats.actions.forEach(function (name) {
-      totalPulls = totalPulls + arms[name].pulls;
-      if (arms[name].pulls > 0 && arms[name].average_reward > bestReward) {
-        bestReward = arms[name].average_reward;
-        bestName = name;
-      }
-    });
-
-    stats.actions.forEach(function (name) {
-      var arm = arms[name];
-      var row = make("tr");
-      if (name === bestName) {
-        row.dataset.best = "true";
-      }
-
-      row.appendChild(make("td", null, name));
-      row.appendChild(make("td", null, arm.pulls));
-      row.appendChild(
-        make("td", null, arm.pulls === 0 ? "—" : arm.average_reward.toFixed(2))
-      );
-      tableBody.appendChild(row);
-    });
-
-    byId("hint-routing").textContent =
-      totalPulls === 0
-        ? "no data yet"
-        : totalPulls + " rating" + (totalPulls === 1 ? "" : "s") + " so far";
-  } catch (error) {
-    byId("hint-routing").textContent = "unavailable";
   }
 }
 
@@ -480,17 +421,20 @@ async function sendFeedback(score) {
     });
 
     clear(note);
-    note.appendChild(document.createTextNode("Thank you. Recorded a score of "));
+    note.appendChild(document.createTextNode("Thank you. That scored "));
     note.appendChild(make("strong", null, response.reward.toFixed(2)));
     note.appendChild(
       document.createTextNode(
-        " for this routing choice, and the preferred setup for tickets like this " +
-          "is now " + response.best_config_for_state + "."
+        " for this routing choice — feedback × 10 minus the " +
+          response.latency_seconds.toFixed(2) + "s it took. The preferred setup for " +
+          "tickets like this is now " + response.best_config_for_state + ". "
       )
     );
+    var link = make("a", null, "See routing performance");
+    link.href = "/performance";
+    note.appendChild(link);
+    note.appendChild(document.createTextNode("."));
     note.hidden = false;
-
-    loadRouting(response.state_key);
   } catch (error) {
     note.textContent = error.message;
     note.hidden = false;
@@ -521,20 +465,6 @@ function buildExamples() {
   });
 }
 
-async function loadStatus() {
-  var dot = byId("status-dot");
-  var text = byId("status-text");
-
-  try {
-    var health = await apiGet("/health");
-    dot.className = "status-dot is-ready";
-    text.textContent = health.ready ? "Ready" : "Starting";
-  } catch (error) {
-    dot.className = "status-dot is-down";
-    text.textContent = "Service unavailable";
-  }
-}
-
 function start() {
   buildExamples();
 
@@ -546,7 +476,6 @@ function start() {
     sendFeedback(0);
   });
 
-  loadStatus();
 
   // Start on the first example so the page is one click from a result.
   byId("subject").value = EXAMPLES[0].subject;

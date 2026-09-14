@@ -15,10 +15,10 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 237 passing, **99%** coverage of `app/` |
+| **Tests** | 240 passing, **99%** coverage of `app/` |
 | **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
-| **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
+| **Console** | Two pages at `/` and `/performance`, served by the same app — no build step, no new dependency |
 | **Stack** | FastAPI · Pydantic · FAISS · scikit-learn · numpy · VADER · SQLite · pytest · black · ruff · mypy · Docker · GitHub Actions |
 
 ---
@@ -68,7 +68,7 @@ rather than one monolithic function.
 | 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
 | 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment` — proved with a `threading.Barrier`, and measured at 4.97 ms of real wall-clock overlap on separate threads | ✅ |
 | 7 | Type hints, black, ruff, pre-commit | mypy passes `--disallow-untyped-defs` over `app/`; all four wired into `.pre-commit-config.yaml`, verified by actually running `pre-commit run --all-files` | ✅ |
-| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 237 tests, 99% coverage | ✅ |
+| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 240 tests, 99% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
 
@@ -127,9 +127,9 @@ pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Then open **<http://localhost:8000/>** — the console, where you can triage
-tickets and rate the answers. <http://localhost:8000/docs> is the interactive
-API documentation.
+Then open **<http://localhost:8000/>** to triage a ticket, and
+**<http://localhost:8000/performance>** to see how well the system is doing.
+<http://localhost:8000/docs> is the interactive API documentation.
 
 From the command line:
 
@@ -172,25 +172,41 @@ python data/generate_tickets.py        # regenerate the labelled dataset
 
 ## The console
 
-Open **<http://localhost:8000/>** once the service is running. It is three
-static files (`app/static/`) served by the same FastAPI process — same origin,
+Two pages, served by the same FastAPI process from `app/static/` — same origin,
 no CORS setup, no `npm install`, no build step, no extra Python dependency.
 Full notes in [app/static/README.md](app/static/README.md).
 
-The page answers one question — *what should happen to this ticket?* — so the
-suggested reply is the biggest thing on it, and the justification sits in
-collapsed sections:
+| Page | URL | Answers |
+|------|-----|---------|
+| **Triage** | <http://localhost:8000/> | *What should happen to this ticket?* |
+| **Performance** | <http://localhost:8000/performance> | *Is this system any good?* |
+
+They are separate because only one of them is about an individual ticket.
+
+**Triage** is a work surface. The suggested reply is the biggest thing on it;
+the justification sits in collapsed sections, opened when someone asks *why did
+it say that?*
 
 | Always visible | Collapsed, one click away |
 |----------------|---------------------------|
 | Subject, description, customer tier | **Analysis** — sentiment per aspect, and the knowledge base sections quoted |
-| Category, urgency, action, handling time | **Agent reasoning** — each step and any tool result |
+| Category, urgency, action, handling time | **Agent reasoning** — each step, any tool result, and any policy override |
 | The suggested reply | **Processing steps** — the seven stages and their real durations |
-| Was this helpful? | **Routing performance** — reward per configuration for this kind of ticket |
+| Was this helpful? | |
 
-Colour is used in three places only — urgency, the action, and sentiment
-polarity — and each always shows its word too, so colour is never the only
-signal.
+**Performance** is an assessment surface — nothing on it belongs to one ticket:
+
+| Card | Backed by | Shows |
+|------|-----------|-------|
+| Classification quality | `/ml/report` | accuracy, precision, recall, F1, per-category table, confusion matrix |
+| Routing | `/rl/stats` | ratings received, ticket types seen, explore/exploit, and average reward per configuration for a chosen ticket type |
+| Pipeline | `/workflow/graph` | the stages in the order the engine derived, with the parallel level boxed |
+
+Colour is used in four places only — urgency, the action, sentiment polarity and
+the sign of a reward — and each shows its word or number too, so colour is never
+the only signal. Every meaning-bearing colour clears WCAG AA against the surface
+it sits on; that was measured, and the first accent failed at 4.42:1 and was
+darkened.
 
 ### Suggested demo
 
@@ -200,11 +216,11 @@ through the system:
 | Example | What it shows |
 |---------|---------------|
 | **Outage** | Enterprise + high urgency + technical → the agent **escalates to a human** |
-| **Feature request** | Same pipeline, but the agent **answers** — the escalation policy says a missing feature is not an outage |
+| **Feature request** | Same pipeline, but the agent **answers** — and if the model tries to escalate, the policy override is shown in the reasoning trace |
 | **Login problem** | The agent calls `check_account_status` before answering |
 | **Duplicate charge** | The agent calls `check_refund_eligibility` before promising any money |
 
-Then rate a reply and open **Routing performance** to see the reward
+Rate a couple of replies, then open **Performance** to see the reward
 (`feedback × 10 − latency`) land against the configuration that produced it.
 
 ---
@@ -682,7 +698,7 @@ merely asserted to be right.
 ## Testing
 
 ```bash
-pytest                                              # 237 tests
+pytest                                              # 240 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -699,7 +715,7 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, concurrent transactions, state store | 28 |
 | `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, repeated tool calls and giving up on them, the escalation policy on all three paths, step limit | 35 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
-| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console routes | 31 |
+| `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, both console pages | 35 |
 | `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection | 18 |
 
 **Coverage: 99% of `app/`** — 100% on the bandit, the DAG engine, the
@@ -752,7 +768,7 @@ TicketIQ/
 │   ├── agent/                  # ReAct loop and the mock tools
 │   ├── rl/                     # contextual bandit, state and reward
 │   ├── workflow/               # DAG engine, SQLite state store, the triage pipeline
-│   └── static/                 # the console (plain HTML, CSS, JavaScript)
+│   └── static/                 # the two console pages (plain HTML, CSS, JavaScript)
 ├── data/
 │   ├── generate_tickets.py     # deterministic dataset generator
 │   ├── tickets.json            # 160 labelled synthetic tickets
@@ -760,7 +776,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 237 tests, 99% coverage
+├── tests/                      # 240 tests, 99% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml

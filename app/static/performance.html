@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Performance · TicketIQ</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23256abf'/><text x='16' y='23' font-size='19' font-family='system-ui' font-weight='600' fill='white' text-anchor='middle'>T</text></svg>" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">T</span>
+      <span class="brand-name">TicketIQ</span>
+    </div>
+    <nav class="nav" aria-label="Sections">
+      <a href="/">Triage</a>
+      <a href="/performance" aria-current="page">Performance</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="page-head">
+    <h1 class="page-title">Performance</h1>
+    <p class="page-intro">
+      How well the system is doing its job: how accurately it classifies, which
+      configuration it has learned to route to, and the pipeline each ticket
+      runs through.
+    </p>
+  </div>
+
+  <!-- ------------------------------------------------------------------
+       Classification quality
+       ------------------------------------------------------------------ -->
+  <section class="card" id="classifier">
+    <h2 class="card-title">Classification quality</h2>
+    <p class="card-note">
+      Measured on a held-out split the model never trained on. The model is then
+      retrained on every ticket before it serves traffic, so these figures
+      describe the method rather than the model now in memory.
+    </p>
+
+    <div class="stats" id="classifier-stats"></div>
+
+    <div class="section">
+      <h3 class="section-title">By category</h3>
+      <div class="scroll-x">
+        <table class="table" id="per-category">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col" class="numeric">Precision</th>
+              <th scope="col" class="numeric">Recall</th>
+              <th scope="col" class="numeric">F1</th>
+              <th scope="col" class="numeric">Tickets</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3 class="section-title">Where it goes wrong</h3>
+      <p class="section-note">
+        Rows are the true category, columns what the classifier predicted, so
+        anything off the diagonal is a mistake.
+      </p>
+      <div class="scroll-x">
+        <table class="matrix" id="confusion"></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------
+       Routing
+       ------------------------------------------------------------------ -->
+  <section class="card" id="routing">
+    <h2 class="card-title">Routing</h2>
+    <p class="card-note">
+      Reply style and how much policy to retrieve are chosen per ticket by an
+      online contextual bandit, scored as
+      <strong>(feedback&nbsp;×&nbsp;10)&nbsp;−&nbsp;latency&nbsp;in&nbsp;seconds</strong>.
+      It learns separately for each kind of ticket, so pick one below.
+    </p>
+
+    <div class="stats" id="routing-stats"></div>
+
+    <div class="section">
+      <div class="card-head">
+        <div>
+          <h3 class="section-title">Average reward by configuration</h3>
+          <p class="section-note" id="routing-scope">—</p>
+        </div>
+        <label class="label" for="state-select" style="margin: 0">
+          Ticket type
+          <select id="state-select" style="margin-top: 6px"></select>
+        </label>
+      </div>
+
+      <div id="routing-body">
+        <div class="scroll-x">
+          <table class="table" id="routing-table">
+            <caption class="visually-hidden">
+              Average reward and number of ratings per configuration
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Configuration</th>
+                <th scope="col">Model</th>
+                <th scope="col" class="bar-cell">Average reward</th>
+                <th scope="col" class="numeric">Reward</th>
+                <th scope="col" class="numeric">Ratings</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------
+       Pipeline
+       ------------------------------------------------------------------ -->
+  <section class="card" id="pipeline-card">
+    <h2 class="card-title">Pipeline</h2>
+    <p class="card-note">
+      Every ticket runs through these stages. The order is derived from the
+      dependencies each stage declares, not written down anywhere, so this is
+      the graph the engine is actually executing.
+    </p>
+    <div class="pipeline" id="pipeline"></div>
+  </section>
+
+</main>
+
+<footer class="foot wrap">
+  <p><a href="/docs">API documentation</a></p>
+</footer>
+
+<script src="/static/performance.js"></script>
+</body>
+</html>

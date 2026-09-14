@@ -336,14 +336,41 @@ def test_the_console_page_is_served_at_the_root(client):
     assert "TicketIQ" in response.text
 
 
-def test_the_console_assets_are_served(client):
-    stylesheet = client.get("/static/styles.css")
-    script = client.get("/static/app.js")
+def test_the_performance_page_is_served(client):
+    response = client.get("/performance")
 
-    assert stylesheet.status_code == 200
-    assert script.status_code == 200
-    # The page is useless if the script is empty, so check it has real content.
-    assert len(script.text) > 1000
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Performance" in response.text
+
+
+def test_both_pages_link_to_each_other(client):
+    """The two pages are only usable as a pair if the nav actually connects."""
+    triage = client.get("/").text
+    performance = client.get("/performance").text
+
+    assert 'href="/performance"' in triage
+    assert 'href="/"' in performance
+    # Each marks itself as the current page, for screen readers and styling.
+    assert 'href="/" aria-current="page"' in triage
+    assert 'href="/performance" aria-current="page"' in performance
+
+
+def test_the_console_assets_are_served(client):
+    for path in ["/static/styles.css", "/static/app.js", "/static/performance.js"]:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        # A page is useless if its script is empty, so check for real content.
+        assert len(response.text) > 1000, path
+
+
+def test_the_performance_page_reads_only_endpoints_that_exist(client):
+    """The page fetches three endpoints; none may 404."""
+    script = client.get("/static/performance.js").text
+
+    for path in ["/ml/report", "/rl/stats", "/workflow/graph"]:
+        assert path in script, path
+        assert client.get(path).status_code == 200, path
 
 
 def test_the_console_does_not_shadow_the_api(client):

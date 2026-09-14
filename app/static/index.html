@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TicketIQ</title>
+  <title>Triage · TicketIQ</title>
   <link rel="stylesheet" href="/static/styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232a78d6'/><text x='16' y='23' font-size='19' font-family='system-ui' font-weight='600' fill='white' text-anchor='middle'>T</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23256abf'/><text x='16' y='23' font-size='19' font-family='system-ui' font-weight='600' fill='white' text-anchor='middle'>T</text></svg>" />
 </head>
 <body>
 
@@ -14,25 +14,31 @@
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">T</span>
       <span class="brand-name">TicketIQ</span>
-      <span class="brand-sub">Support triage</span>
     </div>
-    <p class="status" id="status" role="status">
-      <span class="status-dot" id="status-dot"></span>
-      <span id="status-text">Connecting…</span>
-    </p>
+    <nav class="nav" aria-label="Sections">
+      <a href="/" aria-current="page">Triage</a>
+      <a href="/performance">Performance</a>
+    </nav>
   </div>
 </header>
 
 <main class="wrap">
 
+  <div class="page-head">
+    <h1 class="page-title">Triage a ticket</h1>
+    <p class="page-intro">
+      The ticket is classified, its sentiment scored per aspect, the relevant
+      policy retrieved, and an action decided — then a reply is drafted for you
+      to approve.
+    </p>
+  </div>
+
   <!-- ------------------------------------------------------------------
-       Submit a ticket
+       The ticket
        ------------------------------------------------------------------ -->
   <section class="card">
-    <h1 class="card-title">New ticket</h1>
-
     <form id="ticket-form" autocomplete="off" novalidate>
-      <div class="field">
+      <div class="field" style="margin-top: 0">
         <label class="label" for="subject">Subject</label>
         <input type="text" id="subject" maxlength="300" placeholder="Charged twice on order 4471" />
       </div>
@@ -40,7 +46,7 @@
       <div class="field">
         <label class="label" for="body">Description</label>
         <textarea id="body" rows="5" maxlength="5000"
-                  placeholder="Describe the problem…"></textarea>
+                  placeholder="What is the customer reporting?"></textarea>
       </div>
 
       <div class="field">
@@ -58,7 +64,7 @@
           <span id="submit-label">Triage ticket</span>
         </button>
         <div class="examples">
-          <span class="examples-label">Examples:</span>
+          <span class="examples-label">Try:</span>
           <span id="examples"></span>
         </div>
       </div>
@@ -71,8 +77,8 @@
        The result
        ------------------------------------------------------------------ -->
   <section class="card" id="result" hidden>
-    <div class="result-head">
-      <h2 class="card-title">Triage result</h2>
+    <div class="card-head">
+      <h2 class="card-title">Result</h2>
       <span class="ref" id="result-ref"></span>
     </div>
 
@@ -95,16 +101,16 @@
       </div>
     </dl>
 
-    <div class="reply-block">
+    <div class="section">
       <h3 class="section-title">Suggested reply</h3>
       <div class="reply" id="out-reply"></div>
-    </div>
 
-    <div class="feedback" id="feedback">
-      <span class="feedback-question">Was this reply helpful?</span>
-      <button type="button" class="button" id="fb-yes">Yes</button>
-      <button type="button" class="button" id="fb-no">No</button>
-      <p class="feedback-note" id="feedback-note" hidden></p>
+      <div class="feedback" id="feedback">
+        <span class="feedback-question">Was this reply helpful?</span>
+        <button type="button" class="button" id="fb-yes">Yes</button>
+        <button type="button" class="button" id="fb-no">No</button>
+        <p class="feedback-note" id="feedback-note" hidden></p>
+      </div>
     </div>
 
     <!-- Supporting evidence: available, but not in the way. -->
@@ -112,10 +118,10 @@
       <summary>Analysis <span class="summary-hint" id="hint-analysis"></span></summary>
       <div class="details-body">
         <h4 class="detail-title">Sentiment by aspect</h4>
-        <ul class="aspects" id="out-aspects"></ul>
+        <ul class="stack" id="out-aspects"></ul>
 
         <h4 class="detail-title">Knowledge base sections used</h4>
-        <ul class="sources" id="out-sources"></ul>
+        <ul class="stack" id="out-sources"></ul>
       </div>
     </details>
 
@@ -129,29 +135,18 @@
     <details class="details" id="details-processing">
       <summary>Processing steps <span class="summary-hint" id="hint-processing"></span></summary>
       <div class="details-body">
-        <table class="table" id="out-stages">
-          <thead>
-            <tr><th scope="col">Stage</th><th scope="col">Status</th><th scope="col">Duration</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </details>
-
-    <details class="details" id="details-routing">
-      <summary>Routing performance <span class="summary-hint" id="hint-routing"></span></summary>
-      <div class="details-body">
-        <p class="detail-note" id="routing-note"></p>
-        <table class="table" id="out-routing">
-          <thead>
-            <tr>
-              <th scope="col">Configuration</th>
-              <th scope="col">Times used</th>
-              <th scope="col">Average reward</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div class="scroll-x">
+          <table class="table" id="out-stages">
+            <thead>
+              <tr>
+                <th scope="col">Stage</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="numeric">Duration</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </details>
   </section>
