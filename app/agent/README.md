@@ -44,6 +44,7 @@ variant the bandit chose — turns the decision into the reply text.
 | Tool called without an identifier | fill it in from the ticket text | models routinely forget to pass arguments through |
 | Model only ever calls tools | hard stop at `agent_max_steps` (default 4), then escalate | a confused model can never spin forever |
 | Model repeats a call it already made | replay the earlier result instead of re-running the tool | observed with `llama3.2:1b`; re-running burns a step and, for a tool with real side effects, would be worse than wasteful |
+| Model keeps repeating it | after the second repeat, stop and answer with the result already in hand | replaying is a second chance, not an infinite one — the loop once spent 5 turns and 19.5 s before the step limit escalated it, and latency is subtracted from the reward |
 | Model escalates a feature request | corrected to `answer`, and the correction is recorded in the trace | the knowledge base forbids it twice over — see below |
 
 ## The one rule that is enforced, not asked for
@@ -104,6 +105,6 @@ extract_identifiers("Duplicate payment on order 4471", "My account 9912 was char
 
 ## Tests
 
-`tests/test_agent.py` (33 tests) drives the loop with a fake model, so each test
+`tests/test_agent.py` (35 tests) drives the loop with a fake model, so each test
 can force a specific decision sequence. It covers every row of the failure table
 above, plus the tools and the JSON extraction from prose.

@@ -46,6 +46,10 @@ logger = logging.getLogger("ticketiq.agent")
 # The one category whose escalation the knowledge base forbids outright.
 FEATURE_REQUEST_CATEGORY = "feature_request"
 
+# How many times the model may re-ask for a call it has already made before the
+# loop stops humouring it and answers with the result already in hand.
+REPEATS_BEFORE_GIVING_UP = 2
+
 FEATURE_REQUEST_OVERRIDE_NOTE = (
     "policy: a feature request is never escalated, so this was answered on the "
     "normal queue instead"
@@ -258,6 +262,8 @@ class TriageAgent:
         # tool + arguments -> the summary it returned, so an identical repeat
         # can be answered from memory instead of run again.
         completed_calls: dict[str, str] = {}
+        # How many times each call has been asked for again after that.
+        repeat_counts: dict[str, int] = {}
         decision = ANSWER
 
         for step_number in range(1, self.max_steps + 1):
@@ -356,12 +362,33 @@ class TriageAgent:
                 if call_signature in completed_calls:
                     previous_summary = completed_calls[call_signature]
                     step.observation = previous_summary + " (already checked at an earlier step)"
+                    repeat_counts[call_signature] = repeat_counts.get(call_signature, 0) + 1
 
                     logger.info(
                         "step %s | tool=%s | repeated call, replaying the earlier result",
                         step_number,
                         action,
                     )
+
+                    # Replaying once gives the model another chance to use the
+                    # answer it already has. Asking a third time means it is not
+                    # going to, and every further turn is a wasted model call:
+                    # llama3.2:1b spent five turns and 19.5 seconds looping on
+                    # check_account_status before the step limit escalated it,
+                    # which also drags the reward down, since reward subtracts
+                    # latency. The tool result and the retrieved policy are
+                    # already in hand, so the loop ends with an answer instead.
+                    if repeat_counts[call_signature] >= REPEATS_BEFORE_GIVING_UP:
+                        step.action = ANSWER
+                        step.override = (
+                            "the model asked for the same tool call "
+                            + str(repeat_counts[call_signature] + 1)
+                            + " times; answering with the result it already had"
+                        )
+                        logger.info("step %s | %s", step_number, step.override)
+                        decision = ANSWER
+                        break
+
                     observations.append(action + " -> " + previous_summary)
                     continue
 

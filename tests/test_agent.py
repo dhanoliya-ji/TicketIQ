@@ -202,6 +202,51 @@ def test_an_identical_repeated_tool_call_is_not_executed_twice(fake_llm_factory)
     assert result.trace[0].observation in result.trace[1].observation
 
 
+def test_a_model_stuck_on_one_call_stops_and_answers(fake_llm_factory):
+    """Replaying is a second chance, not an infinite one.
+
+    Observed with llama3.2:1b: five turns and 19.5 seconds looping on
+    check_account_status before the step limit escalated it. Every wasted turn
+    is a model call, and latency is subtracted from the reward, so the loop is
+    ended with the answer already in hand.
+    """
+    same_call = (
+        '{"thought": "check", "action": "check_refund_eligibility",'
+        ' "action_input": {"order_id": "4471"}}'
+    )
+    fake = fake_llm_factory([same_call] * 10)
+    result = run_agent(fake)
+
+    assert result.decision == "answer"
+    # One real call, one replay, then it gives up - not the full step limit.
+    assert len(result.tool_results) == 1
+    assert len(result.trace) == 3
+    assert "same tool call" in result.trace[-1].override
+    # The answer is written from the observation it already had.
+    assert result.trace[0].observation != ""
+
+
+def test_one_repeat_is_still_forgiven(fake_llm_factory):
+    """A single repeat gets the replay and the loop carries on."""
+    same_call = (
+        '{"thought": "check", "action": "check_refund_eligibility",'
+        ' "action_input": {"order_id": "4471"}}'
+    )
+    fake = fake_llm_factory(
+        [
+            same_call,
+            same_call,
+            '{"thought": "now I know", "action": "answer", "action_input": {}}',
+        ]
+    )
+    result = run_agent(fake)
+
+    assert result.decision == "answer"
+    assert len(result.trace) == 3
+    # The model reached its own conclusion; nothing was overridden.
+    assert result.trace[-1].override == ""
+
+
 def test_a_repeated_tool_call_with_different_arguments_does_run(fake_llm_factory):
     """Only identical repeats are suppressed - a different id is a real query."""
     fake = fake_llm_factory(
@@ -405,9 +450,13 @@ def test_the_step_limit_stops_a_looping_model(fake_llm_factory):
     assert len(result.tool_results) == agent.max_steps
 
 
-def test_a_model_repeating_one_call_forever_also_stops(fake_llm_factory):
-    """The same loop, but every call identical: the guard stops re-running the
-    tool, and the step limit still ends the loop."""
+def test_a_model_repeating_one_call_forever_stops_early(fake_llm_factory):
+    """Every call identical: the loop gives up well before the step limit.
+
+    It used to run to `agent_max_steps` and then escalate, which cost four
+    model calls and produced a worse answer than the tool result it already
+    had.
+    """
     tool_call = (
         '{"thought": "again", "action": "check_account_status",'
         ' "action_input": {"customer_id": "1"}}'
@@ -424,10 +473,11 @@ def test_a_model_repeating_one_call_forever_also_stops(fake_llm_factory):
         config=CONFIG,
     )
 
-    assert result.decision == "escalate_to_human"
-    # The loop still ran to its limit, but the tool executed exactly once.
-    assert len(result.trace) == agent.max_steps + 1
+    assert result.decision == "answer"
     assert len(result.tool_results) == 1
+    # Three turns, not the full step limit.
+    assert len(result.trace) == 3
+    assert len(result.trace) < agent.max_steps + 1
 
 
 def test_the_result_dictionary_carries_the_audit_trail(fake_llm_factory):

@@ -15,7 +15,7 @@ rather than one monolithic function.
 
 | | |
 |---|---|
-| **Tests** | 235 passing, **99%** coverage of `app/` |
+| **Tests** | 237 passing, **99%** coverage of `app/` |
 | **Classifier** | 95.0% accuracy / 0.949 macro-F1 on a held-out split |
 | **Bandit** | 54% → 76% optimal choices over 5k tickets; **88.8%** at 20k (ε-ceiling is 88.8%) |
 | **Console** | An operator UI at `/`, served by the same app — no build step, no new dependency |
@@ -68,7 +68,7 @@ rather than one monolithic function.
 | 6 | Failed stage re-runnable without repeating upstream | `POST /ticket/{id}/retry` | ✅ |
 | 6 | Two independent stages running concurrently | `classify_ticket` ∥ `analyse_sentiment` — proved with a `threading.Barrier`, and measured at 4.97 ms of real wall-clock overlap on separate threads | ✅ |
 | 7 | Type hints, black, ruff, pre-commit | mypy passes `--disallow-untyped-defs` over `app/`; all four wired into `.pre-commit-config.yaml`, verified by actually running `pre-commit run --all-files` | ✅ |
-| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 235 tests, 99% coverage | ✅ |
+| 7 | Tests: classifier, bandit update rule, dependency resolution, TestClient, E2E with LLM mocked | [tests/](tests/) — 237 tests, 99% coverage | ✅ |
 | 7 | Dockerfile + GitHub Actions + local run without Docker | [Dockerfile](Dockerfile), [ci.yml](.github/workflows/ci.yml) | ✅ |
 | — | mypy (*"optional but a plus"*) | configured in `pyproject.toml`, enforced in pre-commit and CI | ✅ |
 
@@ -497,9 +497,11 @@ TICKETIQ_OLLAMA_MODEL_A=llama3 TICKETIQ_OLLAMA_MODEL_B=mistral uvicorn app.main:
 ```
 
 **What to expect at this size.** Warm calls take 2–4 s each, so a ticket
-completes in roughly 6–12 s against the template writer's 0.1 s. The *first*
-ticket after a restart is far slower (60–130 s) because Ollama is also loading
-the weights — which is why `TICKETIQ_LLM_TIMEOUT` defaults to 120 s. A 1 B
+completes in roughly 6–20 s against the template writer's 0.1 s. Cold starts are
+much slower — 60–130 s — because Ollama is also loading the weights, and there
+are **two** models here, so expect that twice: once for whichever the bandit
+picks first, and again the first time it explores the other one. That is why
+`TICKETIQ_LLM_TIMEOUT` defaults to 120 s. A 1 B
 model also reasons visibly less well than a 7 B one: it will occasionally ask
 for a tool call it has already made (the agent detects this and replays the
 earlier result instead of re-running the tool) and its prose sometimes
@@ -680,7 +682,7 @@ merely asserted to be right.
 ## Testing
 
 ```bash
-pytest                                              # 235 tests
+pytest                                              # 237 tests
 pytest --cov=app --cov-report=term-missing          # coverage report
 pytest --cov=app --cov-report=html                  # browsable report in htmlcov/
 pytest tests/test_workflow_engine.py -v             # one file
@@ -695,7 +697,7 @@ LLM backend and a throw-away state directory before `app.settings` is imported.
 | `test_nlp_and_rag.py` | aspect extraction and precision, sentiment independence, urgency weighting, dataset split, chunking, the FAISS index, TF-IDF vs scikit-learn, category-aware re-ranking | 46 |
 | `test_rl_bandit.py` | reward function, incremental average, cold start, explore/exploit, untried arms under negative rewards, per-state isolation, convergence, persistence | 22 |
 | `test_workflow_engine.py` | level computation, cycle/missing-dependency rejection, real parallelism, failure + skip, resume, retry-one-stage, concurrent transactions, state store | 28 |
-| `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, repeated tool calls, the escalation policy on all three paths, step limit | 33 |
+| `test_agent.py` | mock tools, JSON extraction from prose, ReAct loop, malformed replies, repeated tool calls and giving up on them, the escalation policy on all three paths, step limit | 35 |
 | `test_llm_client.py` | both prompt variants, template decisions, Ollama request shape, startup and mid-request fallback | 24 |
 | `test_api.py` | every endpoint, all error codes, status reflecting real stage state, retry, the console routes | 31 |
 | `test_end_to_end.py` | full pipeline with the LLM mocked out, persistence, feedback, stage failure, retry, mid-flight inspection | 18 |
@@ -758,7 +760,7 @@ TicketIQ/
 ├── scripts/
 │   ├── train_and_report.py     # classifier metrics
 │   └── simulate_bandit.py      # RL learning experiment
-├── tests/                      # 235 tests, 99% coverage
+├── tests/                      # 237 tests, 99% coverage
 ├── docs/ARCHITECTURE.md        # detailed design and diagrams
 ├── Dockerfile
 ├── .github/workflows/ci.yml
