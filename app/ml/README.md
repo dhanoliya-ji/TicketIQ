@@ -44,9 +44,21 @@ to throw data away.
 ## Aspect sentiment, in three steps
 
 1. Split the ticket into sentences.
-2. Match `ASPECT_KEYWORDS` to spot which aspects each sentence mentions.
+2. Spot aspects: `ASPECT_KEYWORDS` matches single words, `ASPECT_PHRASES`
+   matches multi-word signals against the raw sentence.
 3. Score each sentence with VADER; each aspect gets the mean of its sentences
-   and keeps the harshest one as evidence. At most three aspects are returned.
+   and keeps the harshest one as evidence. At most three aspects are returned,
+   and at least one (a `general` fallback when nothing matches).
+
+**Why phrases as well as words.** The feature aspect originally listed "add",
+"support", "would", "consider" and "ability" as keywords. Those are politeness
+words, not feature words: the aspect fired on 73 of the 160 dataset tickets, 33
+of them billing, technical or account tickets. Because only three aspects are
+returned, a spurious one *pushes a real one off the list* — a ticket praising
+billing and complaining about speed lost the billing aspect entirely. The
+keyword list is now narrow, the real signal ("would be great", "the ability
+to") lives in phrases, and the false-positive count is down from 33 to 15 —
+the remainder being tickets that genuinely do mention a feature.
 
 **The domain lexicon matters.** VADER was built for social media, where
 "support" is a positive word ("I support you"). On support tickets it is a

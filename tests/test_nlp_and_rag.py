@@ -55,6 +55,61 @@ def test_analyser_scores_two_aspects_independently():
         assert by_name["billing"].score > by_name["performance"].score
 
 
+def test_politeness_words_do_not_count_as_a_feature_request():
+    """Regression: the feature aspect used to fire on almost every ticket.
+
+    It listed "add", "support", "would", "consider" and "ability" as keywords,
+    which are politeness words, not feature words. It then matched 73 of the
+    160 dataset tickets - 33 of them billing, technical or account tickets -
+    and crowded genuine aspects out of the top three.
+    """
+    false_positives = [
+        "I would like a refund for the payment taken last month",
+        "Support has not replied for days",
+        "Please add my colleague as a user with administrator permissions",
+    ]
+    for sentence in false_positives:
+        assert "feature_availability" not in find_aspects_in_sentence(sentence), sentence
+
+
+def test_real_feature_requests_are_still_recognised():
+    """Tightening the keywords must not lose the genuine cases.
+
+    Both of these carry no single feature word, so they are caught by the
+    phrase list instead.
+    """
+    real_requests = [
+        "It would be great if the product supported a dark theme",
+        "Could you add the ability to edit many records at once in bulk?",
+        "We would really like an integration that posts into Slack",
+        "Please consider adding scheduled reports",
+    ]
+    for sentence in real_requests:
+        assert "feature_availability" in find_aspects_in_sentence(sentence), sentence
+
+
+def test_a_positive_and_a_negative_aspect_survive_in_one_ticket():
+    """The headline property of per-aspect sentiment.
+
+    A false aspect is not just noise: only three are returned, so a spurious
+    one pushes a real one off the list. This ticket used to lose "billing"
+    entirely to a phantom feature-request aspect.
+    """
+    analyzer = AspectSentimentAnalyzer()
+    aspects = analyzer.analyse(
+        "Mixed feedback",
+        "Billing has always been smooth and the invoices are perfect. "
+        "But the dashboard is unusable and painfully slow. "
+        "Support has not replied for days.",
+    )
+
+    by_name = {aspect.aspect: aspect for aspect in aspects}
+    assert "billing" in by_name
+    assert "performance" in by_name
+    assert by_name["billing"].label == "positive"
+    assert by_name["performance"].label == "negative"
+
+
 def test_analyser_returns_at_most_three_aspects():
     analyzer = AspectSentimentAnalyzer()
     aspects = analyzer.analyse(

@@ -75,9 +75,9 @@ ASPECT_KEYWORDS: dict[str, list[str]] = {
     ],
     "support_response_time": [
         "waiting",
-        "response",
         "reply",
-        "days",
+        "replied",
+        "responded",
         "urgent",
         "asap",
         "escalate",
@@ -100,18 +100,43 @@ ASPECT_KEYWORDS: dict[str, list[str]] = {
         "seat",
         "seats",
     ],
+    # Deliberately narrow. An earlier version included "add", "support",
+    # "would", "consider" and "ability", which are politeness words rather
+    # than feature words: the aspect then fired on 73 of the 160 dataset
+    # tickets, 33 of them billing, technical or account tickets, and crowded
+    # genuine aspects out of the top three. The real signal for a feature
+    # request is usually a phrase, so those live in ASPECT_PHRASES below.
     "feature_availability": [
         "feature",
-        "request",
-        "add",
-        "support",
+        "features",
         "roadmap",
         "integration",
         "idea",
         "suggestion",
-        "would",
-        "consider",
-        "ability",
+    ],
+}
+
+# Some aspects are signalled by a phrase rather than a single word. Matching
+# "would" alone is hopeless; matching "would be great" is not. These are
+# checked as substrings of the lower-cased sentence, so word order matters and
+# punctuation between the words does not.
+ASPECT_PHRASES: dict[str, list[str]] = {
+    "feature_availability": [
+        "would be great",
+        "would be nice",
+        "nice to have",
+        "feature request",
+        "please consider",
+        "would love",
+        "the ability to",
+        "add support for",
+    ],
+    "support_response_time": [
+        "response time",
+        "still waiting",
+        "has not replied",
+        "no one has replied",
+        "nobody has replied",
     ],
 }
 
@@ -228,6 +253,18 @@ def find_aspects_in_sentence(sentence: str) -> list[str]:
             if keyword in lowered_words:
                 found.append(aspect)
                 break  # one keyword is enough to say the aspect was mentioned
+
+    # Phrases are matched against the raw sentence, because their meaning comes
+    # from the words being adjacent.
+    lowered_sentence = sentence.lower()
+    for aspect, phrases in ASPECT_PHRASES.items():
+        if aspect in found:
+            continue
+        for phrase in phrases:
+            if phrase in lowered_sentence:
+                found.append(aspect)
+                break
+
     return found
 
 
